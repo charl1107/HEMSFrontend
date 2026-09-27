@@ -44,15 +44,6 @@ const todayLabel = computed(() =>
   }).format(new Date()),
 )
 
-function formatEventDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
-}
-
 async function load(): Promise<void> {
   if (!canCapture.value) return
   loading.value = true
