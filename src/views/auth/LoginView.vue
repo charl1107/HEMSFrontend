@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { isAxiosError } from 'axios'
 import { useRoute, useRouter } from 'vue-router'
 import { Button } from '@/components/ui'
 import logoUrl from '@/assets/hospitality_logo.svg'
@@ -12,6 +13,7 @@ const auth = useAuthStore()
 
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const error = ref<string | null>(null)
 const loading = ref(false)
 
@@ -29,7 +31,11 @@ async function onSubmit() {
     const target = await auth.login(email.value, password.value)
     await router.push(target)
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Login failed'
+    error.value = isAxiosError(err) && err.response?.status === 401
+      ? 'Incorrect email or password.'
+      : err instanceof Error
+        ? err.message
+        : 'Login failed'
   } finally {
     loading.value = false
   }
@@ -88,25 +94,35 @@ async function onSubmit() {
 
           <label class="login__field">
             <span class="login__label">Password</span>
-            <input
-              v-model="password"
-              class="login__input"
-              data-testid="login-password"
-              type="password"
-              name="password"
-              autocomplete="current-password"
-              required
-            />
+            <div class="login__password-control">
+              <input
+                v-model="password"
+                class="login__input"
+                data-testid="login-password"
+                :type="showPassword ? 'text' : 'password'"
+                name="password"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                class="login__password-toggle"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                :aria-pressed="showPassword"
+                @click="showPassword = !showPassword"
+              >
+                {{ showPassword ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+            <span
+              v-if="error"
+              class="login__error"
+              data-testid="login-error"
+              role="alert"
+            >
+              {{ error }}
+            </span>
           </label>
-
-          <p
-            v-if="error"
-            class="login__error"
-            data-testid="login-error"
-            role="alert"
-          >
-            {{ error }}
-          </p>
 
           <Button
             class="login__submit"
@@ -263,6 +279,8 @@ async function onSubmit() {
 
 .login__input {
   font: inherit;
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.8rem 0.9rem;
   border: 1px solid #fce7f3;
   border-radius: 10px;
@@ -271,6 +289,24 @@ async function onSubmit() {
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
+
+.login__password-control { position: relative; width: 100%; }
+.login__password-control .login__input { padding-right: 4rem; }
+.login__password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0.25rem;
+  background: transparent;
+  color: #be185d;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.login__password-toggle:focus-visible { outline: 2px solid #db2777; outline-offset: 2px; border-radius: 4px; }
 
 .login__input:hover {
   border-color: #f9a8d4;

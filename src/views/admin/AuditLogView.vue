@@ -239,6 +239,27 @@ onMounted(async () => {
   display: flex;
   gap: 0.5rem;
 }
+.audit__filter-actions :deep(button:first-child) {
+  border: 1px solid var(--brand-btn);
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand-strong-btn) 0%, var(--brand-btn) 100%);
+  color: #fff;
+  font-weight: 700;
+}
+.audit__filter-actions :deep(button:first-child:hover:not(:disabled)) { filter: brightness(1.06); }
+.audit :deep(.ui-table-wrap[data-testid='audit-table']) {
+  overflow: auto;
+  border: 1px solid var(--rose-line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+.audit :deep(.ui-table-wrap[data-testid='audit-table'] .ui-table) { background: var(--surface); }
+.audit :deep(.ui-table-wrap[data-testid='audit-table'] .ui-table th) {
+  border-bottom-color: var(--rose-line-2);
+  background: var(--rose-soft);
+  color: var(--brand-text);
+}
+.audit :deep(.ui-table-wrap[data-testid='audit-table'] .ui-table td) { color: var(--ink); }
 .audit__count {
   color: var(--muted-plum);
   font-size: 0.9rem;

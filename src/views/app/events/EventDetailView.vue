@@ -273,6 +273,8 @@ onMounted(load)
 .event-detail {
   padding: 1.5rem;
   max-width: 720px;
+  width: 100%;
+  margin-inline: auto;
   display: flex;
   flex-direction: column;
   gap: 1rem;

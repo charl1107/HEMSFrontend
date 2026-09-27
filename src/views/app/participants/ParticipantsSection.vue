@@ -19,6 +19,7 @@ const props = defineProps<{
 }>()
 
 type AddMode = 'system' | 'external'
+const ALL_STUDENTS_VALUE = '__all_students__'
 
 const participants = ref<ParticipantRecord[]>([])
 const pickerUsers = ref<SafeUser[] | null>(null)
@@ -36,6 +37,14 @@ const externalName = ref('')
 const rosterOpen = computed(() => isRosterStatus(props.status))
 const showForm = computed(() => rosterOpen.value && props.canManage)
 const hasPicker = computed(() => Boolean(pickerUsers.value?.length))
+const addedUserIds = computed(() => new Set(
+  participants.value.flatMap((participant) => participant.userId ? [participant.userId] : []),
+))
+const studentsToAdd = computed(() =>
+  (pickerUsers.value ?? []).filter(
+    (user) => user.roles.includes('Student') && !addedUserIds.value.has(user.id),
+  ),
+)
 
 const systemUserId = computed(() =>
   hasPicker.value ? selectedUserId.value : manualUserId.value.trim(),
@@ -77,6 +86,27 @@ async function onSubmit(): Promise<void> {
   error.value = null
   notice.value = null
   try {
+    if (mode.value === 'system' && selectedUserId.value === ALL_STUDENTS_VALUE) {
+      let addedCount = 0
+      let failedCount = 0
+      for (let index = 0; index < studentsToAdd.value.length; index += 10) {
+        const batch = studentsToAdd.value.slice(index, index + 10)
+        const results = await Promise.allSettled(
+          batch.map((user) =>
+            addParticipant(props.eventId, { userId: user.id, participantType: 'Student' }),
+          ),
+        )
+        addedCount += results.filter((result) => result.status === 'fulfilled').length
+        failedCount += results.filter((result) => result.status === 'rejected').length
+      }
+      notice.value = failedCount
+        ? `Added ${addedCount} of ${studentsToAdd.value.length} students. Some could not be added.`
+        : `Added ${addedCount} student${addedCount === 1 ? '' : 's'}.`
+      selectedUserId.value = ''
+      await refresh()
+      return
+    }
+
     const input =
       mode.value === 'external'
         ? { externalName: externalName.value.trim() }
@@ -178,6 +208,13 @@ onMounted(load)
               <span>User</span>
               <select v-model="selectedUserId" data-testid="participant-user-select">
                 <option value="" disabled>Select a user…</option>
+                <option
+                  v-if="studentsToAdd.length"
+                  :value="ALL_STUDENTS_VALUE"
+                  data-testid="participant-all-students"
+                >
+                  All students not yet added ({{ studentsToAdd.length }})
+                </option>
                 <option v-for="user in pickerUsers" :key="user.id" :value="user.id">
                   {{ user.firstName }} {{ user.lastName }} ({{ user.email }})
                 </option>
@@ -197,7 +234,11 @@ onMounted(load)
             </label>
             <label class="roster__field">
               <span>Type</span>
-              <select v-model="participantType" data-testid="participant-type">
+              <select
+                v-model="participantType"
+                data-testid="participant-type"
+                :disabled="selectedUserId === ALL_STUDENTS_VALUE"
+              >
                 <option value="Student">Student</option>
                 <option value="Staff">Staff</option>
               </select>
@@ -215,7 +256,7 @@ onMounted(load)
 
           <Button
             type="submit"
-            :label="busy ? 'Saving…' : 'Add participant'"
+            :label="busy ? 'Saving…' : selectedUserId === ALL_STUDENTS_VALUE ? 'Add all students' : 'Add participant'"
             data-testid="participant-add"
             :disabled="busy || !canSubmit"
           />

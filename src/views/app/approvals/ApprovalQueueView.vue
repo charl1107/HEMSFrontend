@@ -647,8 +647,80 @@ onMounted(load)
 
   .approvals__create.ui-button {
     position: static;
-    width: 100%;
+    align-self: flex-start;
+    width: auto;
+    min-width: 10rem;
     justify-content: center;
+    padding: 0.6rem 1.1rem;
   }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table']) {
+    overflow: visible;
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table),
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody) {
+    display: block;
+    width: 100%;
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table thead) {
+    display: none;
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody tr) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 0.8rem;
+    margin-bottom: 0.75rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td) {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 0.5rem 0;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td::before) {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(1)::before) { content: 'Cover'; }
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(2)::before) { content: 'Title'; }
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(3)::before) { content: 'Date'; }
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(4)::before) { content: 'Venue'; }
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(5)::before) { content: 'Status'; }
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(6)::before) { content: 'Latest comment'; }
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(7)::before) { content: 'Actions'; }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(2)),
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(4)),
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(6)),
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td:nth-child(7)) {
+    grid-column: 1 / -1;
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td[colspan]) {
+    display: block;
+    grid-column: 1 / -1;
+    border-bottom: 0;
+  }
+
+  .approvals :deep(.ui-table-wrap[data-testid='approvals-table'] .ui-table tbody td[colspan]::before) {
+    content: none;
+  }
+
+  .approvals__actions { gap: 0.45rem; }
 }
 </style>

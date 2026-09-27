@@ -221,7 +221,7 @@ onMounted(() => {
 .dashboard__action {
   display: inline-block;
   padding: 0.65rem 1rem;
-  border-radius: 8px;
+  border-radius: 999px;
   background: linear-gradient(135deg, var(--brand-strong-btn) 0%, var(--brand-btn) 100%);
   color: #fff;
   font-weight: 600;

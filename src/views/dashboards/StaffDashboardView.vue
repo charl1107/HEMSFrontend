@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Card, StatusBadge } from '@/components/ui'
-import { listEvents, type EventRecord } from '../../api/events.api'
+import { Card, EventCard } from '@/components/ui'
+import { listEvents, resolveCoverSrc, type EventRecord } from '../../api/events.api'
 import { ATTENDANCE_SUPERVISOR_ROLES } from '../../api/attendance.api'
 import { useAuthStore } from '../../stores/auth.store'
 import { formatUserDisplayName } from '../../utils/user-name'
@@ -78,7 +78,6 @@ onMounted(load)
         <h1 class="dashboard__title">{{ greeting }}, {{ auth.user ? formatUserDisplayName(auth.user) : 'there' }} 👋</h1>
         <p class="dashboard__intro">{{ todayLabel }}</p>
       </div>
-      <RouterLink :to="{ name: 'events-list' }" class="dashboard__cta">Quick action</RouterLink>
     </header>
 
     <section class="dashboard__stats">
@@ -92,12 +91,6 @@ onMounted(load)
       <article class="dashboard__stat-card">
         <span class="dashboard__stat-label">Scheduled Events</span>
         <strong class="dashboard__stat-value">{{ scheduled.length }}</strong>
-      </article>
-      <article class="dashboard__stat-card dashboard__stat-card--action">
-        <span class="dashboard__stat-label">Quick Action</span>
-        <RouterLink class="dashboard__action-link" :to="{ name: 'events-list' }">
-          Open event hub
-        </RouterLink>
       </article>
     </section>
 
@@ -124,34 +117,32 @@ onMounted(load)
           </p>
         </div>
         <div class="dashboard__empty-actions">
-          <RouterLink class="dashboard__primary-btn" :to="{ name: 'events-list' }" data-testid="view-events">
-            View all events
-          </RouterLink>
           <RouterLink class="dashboard__secondary-btn" :to="{ name: 'reports-dashboard' }">
             Open reports
           </RouterLink>
         </div>
       </div>
       <div v-else class="dashboard__event-preview" data-testid="ongoing-events">
-        <article v-for="event in upcoming.length ? upcoming : ongoing" :key="event.id" class="dashboard__event-card">
-          <div class="dashboard__event-thumb" aria-hidden="true">
-            <span>{{ event.title.slice(0, 2).toUpperCase() }}</span>
-          </div>
-          <div class="dashboard__event-copy">
-            <div class="dashboard__event-meta-row">
-              <h3>{{ event.title }}</h3>
-              <StatusBadge :status="event.status" />
-            </div>
-            <p>{{ formatEventDate(event.eventDate) }} • {{ event.venue }}</p>
-          </div>
+        <EventCard
+          v-for="event in upcoming.length ? upcoming : ongoing"
+          :key="event.id"
+          :title="event.title"
+          :event-date="event.eventDate"
+          :venue="event.venue"
+          :department="event.department"
+          :campus-scope="event.campusScope"
+          :status="event.status"
+          :description="event.description"
+          :cover-src="resolveCoverSrc(event.coverImageUrl)"
+        >
           <RouterLink
             class="dashboard__link-btn"
             :to="{ name: event.status === 'Ongoing' ? 'attendance-capture' : 'event-detail', params: { id: event.id } }"
             :data-testid="`start-attendance-${event.id}`"
           >
-            {{ event.status === 'Ongoing' ? 'Start attendance' : 'View event' }}
+            {{ event.status === 'Ongoing' ? 'Start attendance' : 'View details' }}
           </RouterLink>
-        </article>
+        </EventCard>
       </div>
 
       <div class="dashboard__card-actions">
@@ -300,6 +291,7 @@ onMounted(load)
   color: #fff;
   box-shadow: 0 12px 24px -18px rgba(190, 24, 93, 0.9);
 }
+.dashboard__action-link { border-radius: 999px; }
 
 .dashboard__secondary-btn {
   padding: 0.72rem 0.9rem;
@@ -436,55 +428,16 @@ onMounted(load)
 
 .dashboard__event-preview {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 0.75rem;
   margin-top: 0.25rem;
+  max-width: 46rem;
 }
 
-.dashboard__event-card {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.8rem;
-  border: 1px solid var(--rose-line);
-  border-radius: 0.95rem;
-  background: linear-gradient(135deg, var(--glass-96), var(--glass-rose-90));
-}
-
-.dashboard__event-thumb {
-  display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 0.9rem;
-  background: linear-gradient(135deg, var(--rose-soft) 0%, var(--rose-line) 100%);
-  color: var(--brand-text);
-  font-weight: 800;
-}
-
-.dashboard__event-copy {
-  min-width: 0;
-}
-
-.dashboard__event-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.2rem;
-}
-
-.dashboard__event-meta-row h3 {
-  margin: 0;
-  color: var(--ink);
-  font-size: 1rem;
-}
-
-.dashboard__event-copy p {
-  margin: 0;
-  color: var(--muted-plum);
-  font-size: 0.85rem;
+.dashboard__event-preview :deep(.ui-event-card) {
+  flex: 0 1 22rem;
+  width: min(100%, 22rem);
 }
 
 .dashboard__card-actions {
@@ -536,13 +489,57 @@ onMounted(load)
 
   .dashboard__header,
   .dashboard__stats {
-    grid-template-columns: 1fr;
     display: grid;
   }
 
-  .dashboard__event-card {
-    grid-template-columns: 1fr;
-    justify-items: start;
+  .dashboard__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .dashboard__stat-card:not(.dashboard__stat-card--action) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: 0.45rem;
+    min-width: 0;
+    min-height: 5.7rem;
+    padding: 0.75rem;
+  }
+
+  .dashboard__stat-card:not(.dashboard__stat-card--action) .dashboard__stat-value-row {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .dashboard__stat-card:not(.dashboard__stat-card--action) > .dashboard__stat-value {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 1.55rem;
+  }
+
+  .dashboard__stat-card:not(.dashboard__stat-card--action) > .dashboard__stat-label {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  .dashboard__stat-card--action {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+  }
+
+  .dashboard__stat-card--action .dashboard__action-link {
+    flex: 0 1 auto;
+    width: auto;
+    padding: 0.6rem 0.9rem;
   }
 
   .dashboard__card-actions {
@@ -562,6 +559,51 @@ onMounted(load)
 
   .dashboard__live-dot {
     animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard__event-preview {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.2rem 0;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
+  }
+
+  .dashboard__event-preview::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard__event-preview :deep(.ui-event-card) {
+    flex: 0 0 min(82vw, 22rem);
+    width: min(82vw, 22rem);
+    scroll-snap-align: start;
+  }
+
+  .dashboard__event-preview :deep(.ui-event-card__media) {
+    aspect-ratio: auto;
+    height: 5.5rem;
+  }
+
+  .dashboard__event-preview :deep(.ui-event-card__body) {
+    gap: 0.15rem;
+    padding: 0.5rem 0.65rem 0.6rem;
+  }
+
+  .dashboard__event-preview :deep(.ui-event-card__description) {
+    -webkit-line-clamp: 1;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .dashboard__event-preview .dashboard__link-btn {
+    padding: 0.42rem 0.65rem;
+    font-size: 0.9rem;
   }
 }
 </style>

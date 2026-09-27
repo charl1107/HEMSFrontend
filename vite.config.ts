@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'HEMS — Hospitality Event Management',
-        short_name: 'HEMS',
+        name: 'Hospitality Management Portal',
+        short_name: 'HM Portal',
         description:
           'Offline-capable attendance capture for hospitality events.',
         theme_color: '#2563eb',
