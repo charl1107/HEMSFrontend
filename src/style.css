@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+
+:root {
+  --ui-accent: #2563eb;
+  --ui-text: #111827;
+  --ui-muted: #6b7280;
+  --ui-border: #e5e7eb;
+  --ui-surface: #fff;
+  --ui-radius: 8px;
+
+  /* text */
+  --text-strong: #111827;
+  --ink: #1e1b24;
+  --slate-900: #0f172a;
+  --gray-700: #374151;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --muted: #6b7280;
+  --muted-plum: #5f4f66;
+  --gray-400: #9ca3af;
+  --brand-text: #be185d;
+  --danger-text: #dc2626;
+  --danger-strong: #b91c1c;
+  --success: #047857;
+  --success-strong: #166534;
+  --warn-text: #92400e;
+  --accent-text: #2563eb;
+
+  /* accents and lines */
+  --accent-line: #2563eb;
+  --focus: #ec4899;
+  --pink-line: #f9a8d4;
+  --rose-line: #fce7f3;
+  --rose-line-2: #fbcfe8;
+  --slate-line: #94a3b8;
+  --slate-line-2: #cbd5e1;
+  --line: #e5e7eb;
+  --badge-ring: #fff;
+
+  /* surfaces */
+  --page: #f8fafc;
+  --snow: #fffafc;
+  --surface: #fff;
+  --surface-2: #f9fafb;
+  --fill-soft: #f3f4f6;
+  --fill: #e5e7eb;
+  --rose-soft: #fdf2f8;
+  --rose-soft-2: #fef2f8;
+
+  /* buttons and brand fills */
+  --brand-btn: #be185d;
+  --brand-strong-btn: #db2777;
+  --accent-btn: #2563eb;
+  --accent-btn-hover: #1d4ed8;
+  --danger-btn: #dc2626;
+  --online-dot: #22c55e;
+
+  /* semantic soft backgrounds and lines */
+  --success-soft: #ecfdf5;
+  --success-line: #a7f3d0;
+  --warn-soft: #fffbeb;
+  --warn-line: #fcd34d;
+  --danger-soft: #fef2f2;
+  --danger-line: #fecaca;
+
+  /* translucent panels */
+  --glass-80: rgba(255, 255, 255, 0.8);
+  --glass-82: rgba(255, 255, 255, 0.82);
+  --glass-90: rgba(255, 255, 255, 0.9);
+  --glass-96: rgba(255, 255, 255, 0.96);
+  --glass-rose-90: rgba(253, 242, 248, 0.9);
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* text */
+  --text-strong: #f2ecf5;
+  --ink: #f5f0f8;
+  --slate-900: #e9e4ee;
+  --gray-700: #d1d5db;
+  --slate-700: #cbd5e1;
+  --slate-600: #c3b8cd;
+  --muted: #a696b0;
+  --muted-plum: #b3a4bd;
+  --brand-text: #f9a8d4;
+  --danger-text: #f87171;
+  --danger-strong: #fca5a5;
+  --success: #34d399;
+  --success-strong: #6ee7b7;
+  --warn-text: #fbbf24;
+  --accent-text: #93c5fd;
+
+  /* accents and lines */
+  --accent-line: #60a5fa;
+  --focus: #f472b6;
+  --pink-line: #d66daa;
+  --rose-line: #3a2b45;
+  --rose-line-2: #5c3d57;
+  --slate-line: #645876;
+  --slate-line-2: #5f5470;
+  --line: #3b3049;
+  --badge-ring: #211a2b;
+
+  /* surfaces */
+  --page: #1c1626;
+  --snow: #211a2b;
+  --surface: #211a2b;
+  --surface-2: #241d2e;
+  --fill-soft: #241d2e;
+  --fill: #2a2136;
+  --rose-soft: #241a2b;
+  --rose-soft-2: #241a2b;
+
+  /* semantic soft backgrounds and lines */
+  --success-soft: #0c2f26;
+  --success-line: #14532d;
+  --warn-soft: #2e2413;
+  --warn-line: #a16207;
+  --danger-soft: #2f1c1e;
+  --danger-line: #7f1d1d;
+
+  /* translucent panels */
+  --glass-80: rgba(29, 23, 38, 0.85);
+  --glass-82: rgba(33, 26, 43, 0.88);
+  --glass-90: rgba(30, 24, 40, 0.9);
+  --glass-96: rgba(30, 24, 40, 0.96);
+  --glass-rose-90: rgba(45, 32, 54, 0.9);
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ui-text);
+  background: var(--ui-surface);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#app {
+  min-height: 100svh;
+}

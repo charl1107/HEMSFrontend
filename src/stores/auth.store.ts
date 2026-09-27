@@ -1,0 +1,97 @@
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
+import type { SafeUser } from '../api/auth.types'
+import { login as apiLogin, logout as apiLogout, me as apiMe, refresh as apiRefresh } from '../api/auth.api'
+import { setAccessToken, clearAccessToken, getAccessToken, onUnauthorized } from '../api/http'
+import { landingRoute } from '../router/landing-route'
+
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref<SafeUser | null>(null)
+  const ready = ref(false)
+  let restorePromise: Promise<void> | null = null
+
+  const roles = computed(() => user.value?.roles ?? [])
+  const isAuthenticated = computed(() => Boolean(user.value && getAccessToken()))
+
+  function setSession(token: string, nextUser: SafeUser): void {
+    setAccessToken(token)
+    user.value = nextUser
+    ready.value = true
+  }
+
+  async function login(email: string, password: string): Promise<RouteLocationRaw> {
+    const { accessToken, user: nextUser } = await apiLogin(email, password)
+    setSession(accessToken, nextUser)
+    if (nextUser.mustChangePassword) {
+      return { name: 'change-password' }
+    }
+    return landingRoute(nextUser.roles)
+  }
+
+  async function logout(): Promise<void> {
+    try {
+      await apiLogout()
+    } finally {
+      clearAccessToken()
+      user.value = null
+    }
+  }
+
+  async function fetchMe(): Promise<void> {
+    if (!getAccessToken()) {
+      user.value = null
+      return
+    }
+    try {
+      user.value = await apiMe()
+    } catch {
+      clearAccessToken()
+      user.value = null
+    }
+  }
+
+  async function restoreSession(): Promise<void> {
+    if (!getAccessToken()) {
+      try {
+        const { accessToken, user: nextUser } = await apiRefresh()
+        setSession(accessToken, nextUser)
+      } catch {
+        // No valid refresh cookie — stay signed out.
+      }
+    } else {
+      await fetchMe()
+    }
+    ready.value = true
+  }
+
+  function ensureRestored(): Promise<void> {
+    if (ready.value) {
+      return Promise.resolve()
+    }
+    if (!restorePromise) {
+      restorePromise = restoreSession()
+    }
+    return restorePromise
+  }
+
+  function handleUnauthorized(): void {
+    clearAccessToken()
+    user.value = null
+  }
+
+  onUnauthorized(handleUnauthorized)
+
+  return {
+    user,
+    roles,
+    isAuthenticated,
+    ready,
+    setSession,
+    login,
+    logout,
+    fetchMe,
+    restoreSession,
+    ensureRestored,
+  }
+})

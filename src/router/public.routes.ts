@@ -1,0 +1,25 @@
+import type { RouteRecordRaw } from 'vue-router'
+import PublicLayout from '../layouts/PublicLayout.vue'
+import PublicEventListView from '../views/public/PublicEventListView.vue'
+import PublicEventDetailView from '../views/public/PublicEventDetailView.vue'
+
+export const publicRoutes: RouteRecordRaw[] = [
+  {
+    path: '/events',
+    component: PublicLayout,
+    children: [
+      {
+        path: '',
+        name: 'public-events',
+        component: PublicEventListView,
+        meta: { public: true },
+      },
+      {
+        path: ':id',
+        name: 'public-event-detail',
+        component: PublicEventDetailView,
+        meta: { public: true },
+      },
+    ],
+  },
+]
