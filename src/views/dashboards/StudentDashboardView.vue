@@ -4,6 +4,7 @@ import { Card, StatusBadge } from '@/components/ui'
 import { useAuthStore } from '../../stores/auth.store'
 import { EVENT_READ_ROLES } from '../../api/events.api'
 import { listMyAttendance, type MyAttendanceRow } from '../../api/attendance.api'
+import { formatUserDisplayName } from '../../utils/user-name'
 
 const auth = useAuthStore()
 const canBrowseWorkspace = EVENT_READ_ROLES.some((role) => auth.roles.includes(role))
@@ -86,7 +87,7 @@ onMounted(() => {
     <header class="dashboard__header">
       <p class="dashboard__eyebrow">Student</p>
       <h1 class="dashboard__title">Student dashboard</h1>
-      <p class="dashboard__intro">Welcome{{ auth.user ? `, ${auth.user.firstName}` : '' }}.</p>
+      <p class="dashboard__intro">Welcome{{ auth.user ? `, ${formatUserDisplayName(auth.user)}` : '' }}.</p>
     </header>
 
     <Card title="Quick actions">
@@ -206,7 +207,7 @@ onMounted(() => {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--accent-text);
+  color: var(--brand-text);
 }
 .dashboard__title {
   margin: 0 0 0.35rem;
@@ -221,12 +222,12 @@ onMounted(() => {
   display: inline-block;
   padding: 0.65rem 1rem;
   border-radius: 8px;
-  background: var(--accent-btn);
+  background: linear-gradient(135deg, var(--brand-strong-btn) 0%, var(--brand-btn) 100%);
   color: #fff;
   font-weight: 600;
   text-decoration: none;
 }
-.dashboard__action:hover { background: var(--accent-btn-hover); }
+.dashboard__action:hover { filter: brightness(1.08); }
 .dashboard__action--secondary {
   background: var(--surface);
   color: var(--slate-900);
@@ -333,7 +334,7 @@ onMounted(() => {
   margin: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .dashboard__action:hover { background: var(--accent-btn); }
+  .dashboard__action:hover { filter: none; }
   .dashboard__action--secondary:hover { background: var(--page); }
 }
 </style>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Button } from '@/components/ui'
 import { RouterLink, useRouter } from 'vue-router'
 import logoUrl from '@/assets/hospitality_logo.svg'
 import { useAuthStore } from '../stores/auth.store'
@@ -8,6 +7,7 @@ import { useThemeStore } from '../stores/theme.store'
 import { EVENT_READ_ROLES, SUBMIT_EVENT_ROLES } from '../api/events.api'
 import { REPORT_ROLES } from '../api/reports.api'
 import NotificationBell from '../components/NotificationBell.vue'
+import { formatUserDisplayName } from '../utils/user-name'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
@@ -21,8 +21,10 @@ const isStudentOnly = computed(() =>
 const dashboardPath = computed(() => (isStudentOnly.value ? '/student-dashboard' : '/dashboard'))
 
 const canManageEvents = EVENT_READ_ROLES.some((role) => auth.roles.includes(role))
+const canBrowsePublicEvents = computed(() => auth.roles.includes('Student'))
 const canViewReports = REPORT_ROLES.some((role) => auth.roles.includes(role))
 const canOpenQueue = SUBMIT_EVENT_ROLES.some((role) => auth.roles.includes(role))
+const canViewAttendance = computed(() => auth.roles.includes('Student'))
 
 const initials = computed(() => {
   const email = auth.user?.email ?? 'User'
@@ -34,6 +36,12 @@ const initials = computed(() => {
 })
 
 const roleTag = computed(() => auth.user?.roles[0] ?? 'Member')
+const headerUserName = computed(() => {
+  const user = auth.user
+  if (!user?.firstName) return user?.email ?? ''
+  const lastInitial = user.lastName?.trim().charAt(0).toLocaleUpperCase()
+  return lastInitial ? `${user.firstName} ${lastInitial}.` : user.firstName
+})
 
 async function onLogout() {
   await auth.logout()
@@ -51,7 +59,7 @@ function closeMobile() {
 
 <template>
   <div class="app-layout" :class="{ dark: theme.theme === 'dark' }">
-    <header class="app-bar">
+    <header class="app-bar" :class="{ 'app-bar--menu-open': mobileOpen }">
       <div class="app-bar__left">
         <button
           type="button"
@@ -69,8 +77,8 @@ function closeMobile() {
         <div class="app-bar__brand">
           <img :src="logoUrl" alt="HEMS logo" class="app-bar__logo" />
           <div class="app-bar__wordmark">
-            <span class="app-bar__title">HEMS</span>
-            <span class="app-bar__tag">Hospitality Ops</span>
+            <span class="app-bar__title">HM PORTAL</span>
+            <span class="app-bar__tag">Hospitality Management</span>
           </div>
         </div>
       </div>
@@ -81,6 +89,7 @@ function closeMobile() {
         aria-label="Main navigation"
       >
         <RouterLink
+          v-if="auth.isAuthenticated"
           class="app-bar__tab"
           active-class="app-bar__tab--active"
           :to="dashboardPath"
@@ -89,14 +98,24 @@ function closeMobile() {
           Dashboard
         </RouterLink>
         <RouterLink
-          v-if="canManageEvents"
+          v-if="canManageEvents || canBrowsePublicEvents || !auth.isAuthenticated"
           class="app-bar__tab"
           active-class="app-bar__tab--active"
-          :to="{ name: 'events-list' }"
+          :to="canManageEvents ? { name: 'events-list' } : { name: 'public-events' }"
           data-testid="nav-events"
           @click="closeMobile"
         >
-          Events
+          {{ canManageEvents ? 'Events' : 'Events' }}
+        </RouterLink>
+        <RouterLink
+          v-if="canViewAttendance"
+          class="app-bar__tab"
+          active-class="app-bar__tab--active"
+          :to="{ name: 'my-attendance' }"
+          data-testid="nav-my-attendance"
+          @click="closeMobile"
+        >
+          My Attendance
         </RouterLink>
         <RouterLink
           v-if="canOpenQueue"
@@ -137,29 +156,40 @@ function closeMobile() {
         >
           Audit
         </RouterLink>
+        <button
+          v-if="auth.isAuthenticated"
+          type="button"
+          class="app-bar__tab app-bar__signout"
+          data-testid="logout"
+          @click="onLogout"
+        >Sign out</button>
       </nav>
 
       <div v-if="auth.isAuthenticated" class="app-bar__profile">
         <NotificationBell class="app-bar__bell" />
         <div class="app-bar__avatar" aria-label="User profile initial">{{ initials }}</div>
         <div class="app-bar__profile-meta">
-          <span class="app-bar__user">{{ auth.user?.email }}</span>
+          <span class="app-bar__user">{{ headerUserName }}</span>
           <span class="app-bar__role">{{ roleTag }}</span>
         </div>
-        <Button
-          label="Dark mode"
+        <button
+          type="button"
           class="app-bar__theme"
           data-testid="theme-toggle"
+          :aria-label="theme.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          :title="theme.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
           :aria-pressed="theme.theme === 'dark'"
           @click="theme.toggle()"
-        />
-        <Button
-          label="Sign out"
-          severity="secondary"
-          class="app-bar__logout"
-          data-testid="logout"
+        >
+          <svg v-if="theme.theme === 'dark'" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+          <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13A8.5 8.5 0 0 1 11 3.1 8.5 8.5 0 1 0 20.9 13Z" /></svg>
+        </button>
+        <button
+          type="button"
+          class="app-bar__logout-tablet"
+          data-testid="logout-tablet"
           @click="onLogout"
-        />
+        >Sign out</button>
       </div>
     </header>
     <RouterView />
@@ -183,7 +213,7 @@ function closeMobile() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.9rem 1.4rem;
+  padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--rose-line);
   background: var(--glass-80);
   backdrop-filter: blur(10px);
@@ -224,8 +254,8 @@ function closeMobile() {
 }
 
 .app-bar__logo {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2.35rem;
+  height: 2.35rem;
   border-radius: 0.7rem;
   object-fit: contain;
   background: var(--rose-soft);
@@ -268,7 +298,7 @@ function closeMobile() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.58rem 0.9rem;
+  padding: 0.62rem 0.95rem;
   border-radius: 999px;
   color: var(--muted-plum);
   font-size: 0.88rem;
@@ -301,8 +331,8 @@ function closeMobile() {
 .app-bar__avatar {
   display: grid;
   place-items: center;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 2.2rem;
+  height: 2.2rem;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--rose-soft) 0%, var(--rose-line) 100%);
   color: var(--brand-text);
@@ -401,19 +431,53 @@ function closeMobile() {
   box-shadow: 0 0 0 3px rgba(219, 39, 119, 0.18);
 }
 
-.app-bar__logout.ui-button:disabled {
-  opacity: 0.55;
+.app-bar__theme {
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.6rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 1px solid var(--pink-line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--brand-text);
+  cursor: pointer;
 }
+.app-bar__theme svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.app-bar__theme:hover { background: var(--rose-soft); }
+.app-bar__theme:focus-visible, .app-bar__signout:focus-visible { outline: 2px solid var(--pink-line); outline-offset: 2px; }
+.app-bar__signout { font: inherit; cursor: pointer; text-align: left; }
+.app-bar__signout:hover { background: var(--rose-soft); color: var(--brand-text); }
+.app-bar__logout-tablet { display: none; }
 
 @media (max-width: 767px) {
+  .app-bar--menu-open {
+    z-index: 1000;
+  }
+
+  .app-bar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    column-gap: 0.75rem;
+    row-gap: 0.1rem;
+    padding: 0.45rem 0.75rem 0.5rem;
+  }
+
+  .app-bar__left {
+    flex: 1 1 100%;
+    min-height: 2.25rem;
+  }
+
   .app-bar__hamburger {
     display: flex;
+    flex: 0 0 auto;
   }
 
   .app-bar__nav {
     display: none;
     position: absolute;
-    top: 100%;
+    top: calc(100% + 1px);
     left: 0;
     right: 0;
     flex-direction: column;
@@ -423,10 +487,12 @@ function closeMobile() {
     border-left: none;
     border-right: none;
     border-bottom: 1px solid var(--rose-line);
-    background: var(--surface);
-    z-index: 50;
+    background: var(--page);
+    opacity: 1;
+    z-index: 1000;
     padding: 0.75rem;
     gap: 0.5rem;
+    box-shadow: 0 0.75rem 1rem rgba(12, 8, 18, 0.24);
   }
 
   .app-bar__nav--open {
@@ -441,7 +507,140 @@ function closeMobile() {
   }
 
   .app-bar__profile-meta {
-    display: none;
+    display: flex;
+    min-width: 0;
+    max-width: min(38vw, 12rem);
+    margin-right: 0;
+  }
+
+  .app-bar__user { max-width: 100%; font-size: 0.78rem; }
+  .app-bar__role { font-size: 0.54rem; }
+
+  .app-bar__profile {
+    flex: 1 1 100%;
+    min-height: 2.2rem;
+    gap: 0.45rem;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .app-bar__avatar {
+    flex: 0 0 2.1rem;
+  }
+
+  .app-bar__theme.ui-button,
+  .app-bar__logout.ui-button {
+    white-space: nowrap;
+    padding: 0.48rem 0.7rem;
+    font-size: 0.78rem;
   }
 }
+
+@media (max-width: 520px) {
+  .app-bar {
+    padding: 0.35rem 0.7rem 0.4rem;
+  }
+
+  .app-bar__brand {
+    gap: 0.45rem;
+  }
+
+  .app-bar__logo {
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .app-bar__tag {
+    font-size: 0.55rem;
+  }
+
+  .app-bar__profile {
+    width: auto;
+  }
+
+  .app-bar__profile-meta { max-width: 34vw; }
+  .app-bar__role { display: inline-flex; font-size: 0.5rem; margin-top: 0.08rem; padding: 0.1rem 0.35rem; }
+
+  .app-bar__theme.ui-button,
+  .app-bar__logout.ui-button {
+    flex: 1 1 0;
+    max-width: 8rem;
+    min-height: 2.25rem;
+  }
+
+}
+
+@media (min-width: 768px) {
+  .app-bar__logout-tablet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--pink-line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted-plum);
+    font: inherit;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .app-bar__nav .app-bar__signout { display: none; }
+
+  .app-bar__left { flex: 0 0 auto; }
+  .app-bar__profile { gap: 0.6rem; }
+  .app-bar__nav { gap: 0.25rem; }
+  .app-bar__tab { padding: 0.48rem 0.65rem; }
+}
+
+@media (max-width: 767px) {
+  .app-bar {
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    column-gap: 0.4rem;
+    row-gap: 0.15rem;
+    padding: 0.5rem 0.7rem;
+  }
+
+  .app-bar__left {
+    flex: 0 1 auto;
+    width: auto;
+    min-height: 0;
+    gap: 0.4rem;
+  }
+
+  .app-bar__brand { gap: 0.35rem; }
+  .app-bar__hamburger { width: 1.8rem; height: 1.8rem; }
+  .app-bar__logo { width: 2.1rem; height: 2.1rem; }
+  .app-bar__title { font-size: 0.95rem; }
+  .app-bar__tag { font-size: 0.53rem; }
+
+  .app-bar__profile {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 0.35rem;
+    width: auto;
+    min-height: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
+  .app-bar__avatar { flex: 0 0 2.2rem; width: 2.2rem; height: 2.2rem; }
+  .app-bar__profile-meta { max-width: 4.5rem; }
+  .app-bar__user { font-size: 0.8rem; }
+  .app-bar__role {
+    display: inline-flex;
+    font-size: 0.45rem;
+    margin-top: 0.08rem;
+    padding: 0.08rem 0.25rem;
+  }
+
+  .app-bar__theme { flex-basis: 2.3rem; width: 2.3rem; height: 2.3rem; }
+  .app-bar__theme svg { width: 1.1rem; height: 1.1rem; }
+}
+
 </style>

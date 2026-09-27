@@ -4,6 +4,7 @@ import { Card, StatusBadge } from '@/components/ui'
 import { listEvents, type EventRecord } from '../../api/events.api'
 import { ATTENDANCE_SUPERVISOR_ROLES } from '../../api/attendance.api'
 import { useAuthStore } from '../../stores/auth.store'
+import { formatUserDisplayName } from '../../utils/user-name'
 
 const auth = useAuthStore()
 const events = ref<EventRecord[]>([])
@@ -74,7 +75,7 @@ onMounted(load)
     <header class="dashboard__header">
       <div class="dashboard__headline">
         <p class="dashboard__eyebrow">Overview</p>
-        <h1 class="dashboard__title">{{ greeting }}, {{ auth.user?.firstName ?? 'there' }} 👋</h1>
+        <h1 class="dashboard__title">{{ greeting }}, {{ auth.user ? formatUserDisplayName(auth.user) : 'there' }} 👋</h1>
         <p class="dashboard__intro">{{ todayLabel }}</p>
       </div>
       <RouterLink :to="{ name: 'events-list' }" class="dashboard__cta">Quick action</RouterLink>

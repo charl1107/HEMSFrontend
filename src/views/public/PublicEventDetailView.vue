@@ -122,13 +122,13 @@ onMounted(async () => {
 .public-event-detail__back {
   border: none;
   background: none;
-  color: #2563eb;
+  color: var(--brand-text);
   cursor: pointer;
   font: inherit;
   padding: 0 0 1rem;
 }
 .public-event-detail__error {
-  color: #dc2626;
+  color: var(--danger-text);
 }
 .public-event-detail__body {
   margin-top: 1rem;
@@ -142,21 +142,21 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
-  color: #6b7280;
+  color: var(--muted-plum);
 }
 .public-event-detail__description--empty {
-  color: #9ca3af;
+  color: var(--muted);
 }
 .public-event-detail__schedule {
   margin-top: 1.25rem;
   padding-top: 1.25rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--rose-line);
 }
 .public-event-detail__schedule-title {
   margin: 0 0 0.85rem;
   font-size: 1.15rem;
   font-weight: 700;
-  color: #08060d;
+  color: var(--text-strong);
 }
 .public-event-detail__timeline {
   display: flex;
@@ -170,7 +170,7 @@ onMounted(async () => {
   align-items: flex-start;
   gap: 0.75rem;
   padding-left: 1rem;
-  border-left: 2px solid #f9a8d4;
+  border-left: 2px solid var(--pink-line);
 }
 .public-event-detail__timeline-bullet {
   position: absolute;
@@ -179,7 +179,7 @@ onMounted(async () => {
   width: 0.55rem;
   height: 0.55rem;
   border-radius: 50%;
-  background: #db2777;
+  background: var(--brand-strong-btn);
 }
 .public-event-detail__timeline-content {
   display: flex;
@@ -188,15 +188,15 @@ onMounted(async () => {
 }
 .public-event-detail__timeline-time {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--muted-plum);
   font-weight: 600;
 }
 .public-event-detail__timeline-name {
-  color: #08060d;
+  color: var(--text-strong);
   font-size: 0.95rem;
 }
 .public-event-detail__schedule-empty {
-  color: #6b7280;
+  color: var(--muted-plum);
   font-style: italic;
   margin: 0;
 }
@@ -204,9 +204,9 @@ onMounted(async () => {
   margin-top: 1rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;
-  background: #fdf2f8;
-  border: 1px solid #fbcfe8;
-  color: #be185d;
+  background: var(--rose-soft);
+  border: 1px solid var(--rose-line-2);
+  color: var(--brand-text);
   font-size: 0.88rem;
   line-height: 1.4;
 }

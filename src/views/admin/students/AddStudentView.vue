@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Button, Card } from '@/components/ui'
 import { createUser } from '../../../api/users.api'
 import {
+  DEFAULT_STUDENT_PASSWORD,
   hasStudentFieldErrors,
   toCreateUserPayload,
   validateStudentForm,
@@ -11,12 +12,19 @@ import {
   type StudentFormValues,
 } from './student-form'
 
+const props = withDefaults(defineProps<{ overlay?: boolean }>(), { overlay: false })
+const emit = defineEmits<{
+  created: [user: import('../../../api/auth.types').SafeUser]
+  cancel: []
+}>()
 const router = useRouter()
 
 const values = ref<StudentFormValues>({
   studentId: '',
   firstName: '',
+  middleName: '',
   lastName: '',
+  suffix: '',
   email: '',
   program: '',
   yearLevel: '',
@@ -35,8 +43,9 @@ async function onSubmit() {
   if (hasStudentFieldErrors(errors.value)) return
   saving.value = true
   try {
-    await createUser(toCreateUserPayload(values.value))
-    await router.push({ name: 'admin-users' })
+    const created = await createUser(toCreateUserPayload(values.value))
+    if (props.overlay) emit('created', created)
+    else await router.push({ name: 'admin-users' })
   } catch (err) {
     formError.value = err instanceof Error ? err.message : 'Failed to create student'
   } finally {
@@ -50,13 +59,13 @@ function onStatusChange(event: Event) {
 </script>
 
 <template>
-  <main class="add-student">
+  <component :is="overlay ? 'div' : 'main'" class="add-student" :class="{ 'add-student--overlay': overlay }">
     <form
       class="add-student__form"
       data-testid="add-student-form"
       @submit.prevent="onSubmit"
     >
-      <header class="add-student__header">
+      <header v-if="!overlay" class="add-student__header">
         <p class="add-student__eyebrow">Students</p>
         <h1 class="add-student__title">Add Student</h1>
         <p class="add-student__intro">Create a new student account</p>
@@ -137,6 +146,33 @@ function onStatusChange(event: Event) {
             </label>
           </div>
 
+          <div class="add-student__row">
+            <label class="add-student__field">
+              <span class="add-student__label">Middle name (optional)</span>
+              <input
+                v-model="values.middleName"
+                class="add-student__input"
+                data-testid="middleName"
+                type="text"
+                name="middleName"
+                autocomplete="additional-name"
+              />
+            </label>
+
+            <label class="add-student__field">
+              <span class="add-student__label">Suffix (optional)</span>
+              <input
+                v-model="values.suffix"
+                class="add-student__input"
+                data-testid="suffix"
+                type="text"
+                name="suffix"
+                autocomplete="honorific-suffix"
+                placeholder="Jr., III"
+              />
+            </label>
+          </div>
+
           <label class="add-student__field">
             <span class="add-student__label">Email</span>
             <input
@@ -207,8 +243,9 @@ function onStatusChange(event: Event) {
         <fieldset class="add-student__section" :disabled="saving">
           <legend class="add-student__legend">Account Information</legend>
 
+          <p class="add-student__intro">Students who do not receive a custom password use the default first-login password: <strong>{{ DEFAULT_STUDENT_PASSWORD }}</strong>.</p>
           <label class="add-student__field">
-            <span class="add-student__label">Password</span>
+            <span class="add-student__label">Password (optional)</span>
             <input
               v-model="values.password"
               class="add-student__input"
@@ -228,7 +265,7 @@ function onStatusChange(event: Event) {
           </label>
 
           <label class="add-student__field">
-            <span class="add-student__label">Confirm password</span>
+            <span class="add-student__label">Confirm password (if setting one)</span>
             <input
               v-model="values.confirmPassword"
               class="add-student__input"
@@ -268,11 +305,16 @@ function onStatusChange(event: Event) {
       </Card>
 
       <div class="add-student__actions">
-        <RouterLink
+        <button
+          v-if="overlay"
+          type="button"
           class="add-student__cancel"
           data-testid="add-student-cancel"
-          to="/admin/users"
+          @click="emit('cancel')"
         >
+          Cancel
+        </button>
+        <RouterLink v-else class="add-student__cancel" data-testid="add-student-cancel" to="/admin/users">
           Cancel
         </RouterLink>
         <Button
@@ -283,7 +325,7 @@ function onStatusChange(event: Event) {
         />
       </div>
     </form>
-  </main>
+  </component>
 </template>
 
 <style scoped>
@@ -292,6 +334,7 @@ function onStatusChange(event: Event) {
   background: var(--page);
   min-height: 100%;
 }
+.add-student--overlay { padding: 0; min-height: 0; }
 
 .add-student__form {
   display: flex;
@@ -417,6 +460,10 @@ function onStatusChange(event: Event) {
 }
 
 .add-student__cancel {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--slate-600);
@@ -431,6 +478,13 @@ function onStatusChange(event: Event) {
   .add-student__row {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+@media (max-width: 520px) {
+  .add-student:not(.add-student--overlay) { padding: 0.9rem; }
+  .add-student__form { gap: 0.9rem; }
+  .add-student__actions { position: sticky; bottom: 0; padding: 0.75rem; margin: 0 -0.25rem; background: var(--surface); border-top: 1px solid var(--line); }
+  .add-student__actions :deep(button), .add-student__actions :deep(a) { min-height: 2.75rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,7 +2,6 @@ import { http } from './http'
 import type { SafeUser } from './auth.types'
 
 export const ROLE_NAMES = [
-  'Admin',
   'Department Head',
   'Event Coordinator',
   'Instructor',
@@ -28,8 +27,10 @@ export async function assignRole(userId: string, role: string): Promise<SafeUser
   return data
 }
 
-export async function removeRole(userId: string, roleId: string): Promise<SafeUser> {
-  const { data } = await http.delete<SafeUser>(`/users/${userId}/roles/${roleId}`)
+export async function removeRole(userId: string, roleName: string): Promise<SafeUser> {
+  const { data } = await http.delete<SafeUser>(
+    `/users/${userId}/roles/by-name/${encodeURIComponent(roleName)}`,
+  )
   return data
 }
 
@@ -37,7 +38,9 @@ export interface CreateUserPayload {
   email: string
   password: string
   firstName: string
+  middleName?: string
   lastName: string
+  suffix?: string
   isActive: boolean
   roles: string[]
   studentId?: string

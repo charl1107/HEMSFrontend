@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { EventCard } from '@/components/ui'
 import { listPublicEvents, resolveCoverSrc, type EventRecord } from '../../api/events.api'
 
-const PAGE_SIZE = 24
+const PAGE_SIZE = 100
 
 const events = ref<EventRecord[]>([])
 const total = ref(0)
@@ -26,7 +26,9 @@ const filteredEvents = computed(() => {
     })
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().slice(0, 10)
   if (statusTab.value === 'Ongoing') {
     list = list.filter((event) => event.status === 'Ongoing')
   } else if (statusTab.value === 'Upcoming') {
@@ -126,7 +128,7 @@ onMounted(() => {
     </p>
     <p v-else-if="!events.length" data-testid="public-events-empty">No public events yet.</p>
     <p v-else-if="!filteredEvents.length" class="public-events__empty-filter">
-      No events match your search or filter.
+      No events match this filter. Choose All to see every event, including pending and cancelled events.
     </p>
     <div v-else class="public-events__grid">
       <EventCard
@@ -153,6 +155,9 @@ onMounted(() => {
     >
       {{ loadingMore ? 'Loading…' : `Load more (${events.length} of ${total})` }}
     </button>
+    <p class="public-events__visibility-note">
+      The All tab includes events in every status. Live, Upcoming, and Past are convenience filters.
+    </p>
   </main>
 </template>
 
@@ -171,14 +176,14 @@ onMounted(() => {
 .public-events__search {
   max-width: 24rem;
   padding: 0.6rem 0.9rem;
-  border: 1px solid #f9a8d4;
+  border: 1px solid var(--pink-line);
   border-radius: 8px;
   font: inherit;
-  background: #fff;
-  color: #08060d;
+  background: var(--surface);
+  color: var(--text-strong);
 }
 .public-events__search:focus-visible {
-  outline: 2px solid #ec4899;
+  outline: 2px solid var(--brand-text);
   outline-offset: 1px;
 }
 .public-events__tabs {
@@ -189,9 +194,9 @@ onMounted(() => {
 .public-events__tab {
   padding: 0.4rem 0.85rem;
   border-radius: 999px;
-  border: 1px solid #f9a8d4;
-  background: #fff;
-  color: #5f4f66;
+  border: 1px solid var(--pink-line);
+  background: var(--surface);
+  color: var(--muted-plum);
   font: inherit;
   font-size: 0.85rem;
   font-weight: 600;
@@ -199,11 +204,11 @@ onMounted(() => {
   transition: all 0.15s ease;
 }
 .public-events__tab:hover {
-  background: #fdf2f8;
-  color: #be185d;
+  background: var(--rose-soft);
+  color: var(--brand-text);
 }
 .public-events__tab--active {
-  background: linear-gradient(135deg, #db2777 0%, #be185d 100%);
+  background: linear-gradient(135deg, var(--brand-strong-btn) 0%, var(--brand-btn) 100%);
   color: #fff;
   border-color: transparent;
 }
@@ -214,11 +219,11 @@ onMounted(() => {
   margin-top: 1.25rem;
 }
 .public-events__error {
-  color: #dc2626;
+  color: var(--danger-text);
 }
 .public-events__empty-filter {
   margin-top: 1.5rem;
-  color: #6b7280;
+  color: var(--muted-plum);
   font-style: italic;
 }
 .public-events__load-more {
@@ -227,22 +232,33 @@ onMounted(() => {
   padding: 0.6rem 1.5rem;
   font: inherit;
   font-weight: 600;
-  color: #5f4f66;
-  background: #fff;
-  border: 1px solid #f9a8d4;
+  color: var(--muted-plum);
+  background: var(--surface);
+  border: 1px solid var(--pink-line);
   border-radius: 999px;
   cursor: pointer;
 }
 .public-events__load-more:hover:enabled {
-  background: #fdf2f8;
-  color: #be185d;
+  background: var(--rose-soft);
+  color: var(--brand-text);
 }
 .public-events__load-more:focus-visible {
-  outline: 2px solid #ec4899;
+  outline: 2px solid var(--brand-text);
   outline-offset: 2px;
 }
 .public-events__load-more:disabled {
   opacity: 0.6;
   cursor: default;
 }
+.public-events__visibility-note {
+  margin: 1rem 0 0;
+  color: var(--muted-plum);
+  font-size: 0.82rem;
+}
+:deep(.ui-event-card__actions a) {
+  color: var(--brand-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+:deep(.ui-event-card__actions a:hover) { text-decoration: underline; }
 </style>

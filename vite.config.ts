@@ -20,7 +20,7 @@ export default defineConfig({
         theme_color: '#2563eb',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/login',
+        start_url: '/welcome',
         icons: [
           {
             src: '/favicon.svg',

@@ -50,9 +50,6 @@ onMounted(load)
   <main class="my-attendance" data-testid="my-attendance">
     <div class="my-attendance__header">
       <h1>My attendance</h1>
-      <RouterLink :to="{ name: 'student-dashboard' }" data-testid="back-to-dashboard">
-        ← Back to dashboard
-      </RouterLink>
     </div>
 
     <p v-if="loading">Loading…</p>
@@ -116,10 +113,6 @@ onMounted(load)
 .my-attendance__header h1 {
   margin: 0;
   font-size: 1.35rem;
-}
-.my-attendance__header a {
-  color: var(--accent-text);
-  font-size: 0.9em;
 }
 .my-attendance__error {
   color: var(--danger-text);

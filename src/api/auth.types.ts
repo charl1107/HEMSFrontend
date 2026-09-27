@@ -2,7 +2,9 @@ export interface SafeUser {
   id: string
   email: string
   firstName: string
+  middleName?: string | null
   lastName: string
+  suffix?: string | null
   isActive: boolean
   roles: string[]
   mustChangePassword: boolean

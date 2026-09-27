@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button } from '@/components/ui'
 import logoUrl from '@/assets/hospitality_logo.svg'
 import { useAuthStore } from '../../stores/auth.store'
 import { landingRoute } from '../../router/landing-route'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 
 const email = ref('')
@@ -36,25 +37,32 @@ async function onSubmit() {
 </script>
 
 <template>
-  <main class="login">
+  <main class="login" :class="{ 'login--mobile-entry': route.name === 'login' }">
     <aside class="login__brand" aria-label="HEMS brand panel">
       <div class="login__brand-inner">
         <div class="login__logo-wrap">
           <img :src="logoUrl" alt="HEMS hospitality logo" class="login__logo" />
         </div>
         <div class="login__brand-copy-wrap">
-          <p class="login__mark">Hospitality Operations</p>
+          <p class="login__mark">Hospitality Management</p>
           <p class="login__brand-copy">
-            Campus events, approvals, and attendance in one refined workspace.
+            Your campus events, activities, and attendance — all in one place.
           </p>
         </div>
+        <RouterLink
+          v-if="route.name === 'login'"
+          class="login__brand-cta"
+          :to="{ name: 'sign-in' }"
+        >
+          Sign in
+        </RouterLink>
       </div>
     </aside>
 
     <section class="login__panel">
       <div class="login__panel-inner">
         <header class="login__header">
-          <p class="login__product">HEMS</p>
+          <p class="login__product">HM PORTAL</p>
           <h1 class="login__title">Sign in</h1>
           <p class="login__intro">Use your campus email to continue.</p>
         </header>
@@ -115,8 +123,8 @@ async function onSubmit() {
 
 <style scoped>
 .login {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
   background: #f4f1f5;
 }
@@ -127,14 +135,29 @@ async function onSubmit() {
   color: #fdf2f8;
 }
 
+.login__brand-cta {
+  display: none;
+  min-width: 10rem;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.25rem;
+  border-radius: 0.7rem;
+  background: linear-gradient(135deg, #db2777 0%, #be185d 100%);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .login__brand-inner {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 1.75rem;
-  height: 100%;
-  padding: 2.5rem;
+  min-height: 100svh;
+  box-sizing: border-box;
+  padding: 2rem 1.5rem;
   text-align: center;
 }
 
@@ -142,7 +165,7 @@ async function onSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: min(22rem, 72%);
+  width: min(18rem, 62vw);
   aspect-ratio: 1;
   padding: 1.5rem;
   border-radius: 2rem;
@@ -172,7 +195,7 @@ async function onSubmit() {
 
 .login__brand-copy {
   margin: 0;
-  font-size: clamp(1.6rem, 2.1vw, 2.3rem);
+  font-size: clamp(1.35rem, 5vw, 1.8rem);
   line-height: 1.2;
   font-weight: 600;
   color: #fdf2f8;
@@ -184,6 +207,8 @@ async function onSubmit() {
   justify-content: center;
   padding: 2rem 1.25rem;
   background: rgba(255, 255, 255, 0.7);
+  min-height: 100svh;
+  box-sizing: border-box;
 }
 
 .login__panel-inner {
@@ -282,6 +307,7 @@ async function onSubmit() {
 
 @media (min-width: 900px) {
   .login {
+    display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
@@ -289,9 +315,24 @@ async function onSubmit() {
     display: block;
   }
 
+  .login__brand-inner {
+    min-height: 100%;
+    height: 100%;
+    padding: 2.5rem;
+  }
+
+  .login__logo-wrap { width: min(22rem, 72%); }
+  .login__brand-copy { font-size: clamp(1.6rem, 2.1vw, 2.3rem); }
   .login__panel {
     padding: 3rem 2.5rem;
   }
+}
+
+@media (max-width: 899px) {
+  .login--mobile-entry .login__brand { display: block; }
+  .login--mobile-entry .login__brand-inner { min-height: 100svh; }
+  .login--mobile-entry .login__brand-cta { display: inline-flex; }
+  .login--mobile-entry .login__panel { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

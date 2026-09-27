@@ -23,11 +23,11 @@ export async function me(): Promise<SafeUser> {
 }
 
 export async function changePassword(
-  currentPassword: string,
+  currentPassword: string | undefined,
   newPassword: string,
 ): Promise<SafeUser> {
   const { data } = await http.post<SafeUser>('/auth/change-password', {
-    currentPassword,
+    ...(currentPassword ? { currentPassword } : {}),
     newPassword,
   })
   return data

@@ -17,7 +17,9 @@ function systemTheme(): Theme {
 
 function initialTheme(): Theme {
   const stored = localStorage.getItem(STORAGE_KEY)
-  return isTheme(stored) ? stored : systemTheme()
+  const theme = isTheme(stored) ? stored : systemTheme()
+  document.documentElement.classList.toggle('dark', theme === 'dark')
+  return theme
 }
 
 export const useThemeStore = defineStore('theme', () => {
@@ -26,6 +28,7 @@ export const useThemeStore = defineStore('theme', () => {
   function toggle(): void {
     theme.value = theme.value === 'dark' ? 'light' : 'dark'
     localStorage.setItem(STORAGE_KEY, theme.value)
+    document.documentElement.classList.toggle('dark', theme.value === 'dark')
   }
 
   return { theme, toggle }

@@ -40,7 +40,6 @@ describe('ChangePasswordView', () => {
   it('shows field errors on mismatch', async () => {
     const { wrapper } = await mountView()
 
-    await wrapper.find('[data-testid="current-password"]').setValue('OldPass123')
     await wrapper.find('[data-testid="new-password"]').setValue('NewPass123')
     await wrapper.find('[data-testid="confirm-password"]').setValue('Different1')
     await wrapper.find('[data-testid="change-password-submit"]').trigger('click')
@@ -62,13 +61,12 @@ describe('ChangePasswordView', () => {
     })
     const { wrapper } = await mountView()
 
-    await wrapper.find('[data-testid="current-password"]').setValue('OldPass123')
     await wrapper.find('[data-testid="new-password"]').setValue('NewPass123')
     await wrapper.find('[data-testid="confirm-password"]').setValue('NewPass123')
     await wrapper.find('[data-testid="change-password-submit"]').trigger('click')
     await flushPromises()
 
-    expect(changePassword).toHaveBeenCalledWith('OldPass123', 'NewPass123')
+    expect(changePassword).toHaveBeenCalledWith(undefined, 'NewPass123')
   })
 
   it('navigates after success', async () => {
@@ -83,7 +81,6 @@ describe('ChangePasswordView', () => {
     })
     const { wrapper, router } = await mountView()
 
-    await wrapper.find('[data-testid="current-password"]').setValue('OldPass123')
     await wrapper.find('[data-testid="new-password"]').setValue('NewPass123')
     await wrapper.find('[data-testid="confirm-password"]').setValue('NewPass123')
     await wrapper.find('[data-testid="change-password-submit"]').trigger('click')
@@ -92,22 +89,12 @@ describe('ChangePasswordView', () => {
     expect(router.currentRoute.value.name).toBe('student-dashboard')
   })
 
-  it('maps API 401 to current password incorrect', async () => {
-    const err = Object.assign(new Error('Request failed'), {
-      isAxiosError: true,
-      response: { status: 401 },
-    })
-    vi.mocked(changePassword).mockRejectedValue(err)
+  it('omits the current password field and supports password visibility toggles', async () => {
     const { wrapper } = await mountView()
-
-    await wrapper.find('[data-testid="current-password"]').setValue('WrongPass')
-    await wrapper.find('[data-testid="new-password"]').setValue('NewPass123')
-    await wrapper.find('[data-testid="confirm-password"]').setValue('NewPass123')
-    await wrapper.find('[data-testid="change-password-submit"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="change-password-error"]').text()).toContain(
-      'Current password is incorrect.',
-    )
+    expect(wrapper.find('[data-testid="current-password"]').exists()).toBe(false)
+    const input = wrapper.find<HTMLInputElement>('[data-testid="new-password"]')
+    expect(input.element.type).toBe('password')
+    await wrapper.get('button[aria-pressed="false"]').trigger('click')
+    expect(input.element.type).toBe('text')
   })
 })

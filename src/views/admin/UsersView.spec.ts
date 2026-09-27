@@ -36,17 +36,25 @@ describe('UsersView', () => {
     vi.mocked(listUsers).mockResolvedValue([])
   })
 
-  it('shows Add Student link for navigation', async () => {
+  it('shows an Add Student button that opens the overlay', async () => {
     const wrapper = await mountView()
 
-    const link = wrapper.find('a[href="/admin/students/new"]')
-    expect(link.exists()).toBe(true)
-    expect(link.attributes('data-testid')).toBe('add-student-link')
-    expect(link.text()).toContain('Add Student')
+    const button = wrapper.find('[data-testid="add-student-link"]')
+    expect(button.exists()).toBe(true)
+    expect(button.element.tagName).toBe('BUTTON')
+    expect(button.text()).toContain('Add Student')
+    await button.trigger('click')
+    expect(document.querySelector('[data-testid="add-student-form"]')).not.toBeNull()
   })
 
   it('keeps the admin-users container testid', async () => {
     const wrapper = await mountView()
     expect(wrapper.find('[data-testid="admin-users"]').exists()).toBe(true)
+  })
+
+  it('opens the CSV student import modal', async () => {
+    const wrapper = await mountView()
+    await wrapper.find('[data-testid="open-bulk-import"]').trigger('click')
+    expect(document.querySelector('[data-testid="bulk-import-students"]')).not.toBeNull()
   })
 })

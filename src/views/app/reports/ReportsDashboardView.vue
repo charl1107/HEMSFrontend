@@ -221,14 +221,14 @@ onMounted(load)
                 :key="row.eventId"
                 :data-testid="`attendance-event-${row.eventId}`"
               >
-                <td>{{ row.title }}</td>
-                <td><StatusBadge :status="row.status" /></td>
-                <td>{{ row.registered }}</td>
-                <td>{{ row.present }}</td>
-                <td>{{ row.absent }}</td>
-                <td>{{ row.missing }}</td>
-                <td>{{ formatPercent(row.presentRate) }}</td>
-                <td>
+                <td data-label="Event">{{ row.title }}</td>
+                <td data-label="Status"><StatusBadge :status="row.status" /></td>
+                <td data-label="Registered">{{ row.registered }}</td>
+                <td data-label="Present">{{ row.present }}</td>
+                <td data-label="Absent">{{ row.absent }}</td>
+                <td data-label="Missing">{{ row.missing }}</td>
+                <td data-label="Present rate">{{ formatPercent(row.presentRate) }}</td>
+                <td data-label="Report">
                   <RouterLink
                     :to="{ name: 'event-report', params: { id: row.eventId } }"
                     :data-testid="`event-report-link-${row.eventId}`"
@@ -328,5 +328,51 @@ onMounted(load)
   color: var(--muted);
   font-size: 0.85em;
   font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .reports { padding: 0.85rem; }
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table,
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody {
+    display: block;
+    width: 100%;
+  }
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table thead { display: none; }
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 0.8rem;
+    margin-bottom: 0.75rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    background: var(--surface);
+  }
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--line);
+    overflow-wrap: anywhere;
+  }
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td:first-child {
+    grid-column: 1 / -1;
+    font-weight: 600;
+  }
+  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td[colspan] {
+    display: block;
+    grid-column: 1 / -1;
+    border-bottom: 0;
+  }
 }
 </style>

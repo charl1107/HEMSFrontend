@@ -10,9 +10,10 @@ import { landingRoute } from '../../router/landing-route'
 const router = useRouter()
 const auth = useAuthStore()
 
-const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
 const fieldErrors = ref<{ newPassword?: string; confirmPassword?: string }>({})
 const error = ref<string | null>(null)
 const loading = ref(false)
@@ -32,7 +33,7 @@ async function onSubmit() {
 
   loading.value = true
   try {
-    await changePassword(currentPassword.value, newPassword.value)
+    await changePassword(undefined, newPassword.value)
     await auth.fetchMe()
     await router.push(landingRoute(auth.roles))
   } catch (err) {
@@ -63,29 +64,19 @@ async function onSubmit() {
           @submit.prevent="onSubmit"
         >
           <label class="change-password__field">
-            <span class="change-password__label">Current password</span>
-            <input
-              v-model="currentPassword"
-              class="change-password__input"
-              data-testid="current-password"
-              type="password"
-              name="current-password"
-              autocomplete="current-password"
-              required
-            />
-          </label>
-
-          <label class="change-password__field">
             <span class="change-password__label">New password</span>
             <input
               v-model="newPassword"
               class="change-password__input"
               data-testid="new-password"
-              type="password"
+              :type="showNewPassword ? 'text' : 'password'"
               name="new-password"
               autocomplete="new-password"
               required
             />
+            <button type="button" class="change-password__visibility" :aria-pressed="showNewPassword" @click="showNewPassword = !showNewPassword">
+              {{ showNewPassword ? 'Hide password' : 'Show password' }}
+            </button>
             <span
               v-if="fieldErrors.newPassword"
               class="change-password__field-error"
@@ -101,11 +92,14 @@ async function onSubmit() {
               v-model="confirmPassword"
               class="change-password__input"
               data-testid="confirm-password"
-              type="password"
+              :type="showConfirmPassword ? 'text' : 'password'"
               name="confirm-password"
               autocomplete="new-password"
               required
             />
+            <button type="button" class="change-password__visibility" :aria-pressed="showConfirmPassword" @click="showConfirmPassword = !showConfirmPassword">
+              {{ showConfirmPassword ? 'Hide password' : 'Show password' }}
+            </button>
             <span
               v-if="fieldErrors.confirmPassword"
               class="change-password__field-error"
@@ -215,6 +209,17 @@ async function onSubmit() {
 .change-password__input:focus {
   border-color: var(--accent-line);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.change-password__visibility {
+  align-self: flex-end;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .change-password__field-error {

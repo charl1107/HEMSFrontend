@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import LoginView from '../views/auth/LoginView.vue'
+import WelcomeView from '../views/auth/WelcomeView.vue'
 import ChangePasswordView from '../views/auth/ChangePasswordView.vue'
 import StudentDashboardView from '../views/dashboards/StudentDashboardView.vue'
 import StaffDashboardView from '../views/dashboards/StaffDashboardView.vue'
@@ -25,8 +26,20 @@ const STAFF_ROLES = ['Department Head', 'Event Coordinator', 'Instructor', 'Stud
 export const routes: RouteRecordRaw[] = [
   ...publicRoutes,
   {
+    path: '/welcome',
+    name: 'welcome',
+    component: WelcomeView,
+    meta: { public: true },
+  },
+  {
     path: '/login',
     name: 'login',
+    component: LoginView,
+    meta: { public: true },
+  },
+  {
+    path: '/sign-in',
+    name: 'sign-in',
     component: LoginView,
     meta: { public: true },
   },
@@ -37,7 +50,7 @@ export const routes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'home',
-        redirect: { name: 'login' },
+        redirect: { name: 'welcome' },
         meta: { public: true },
       },
       {
