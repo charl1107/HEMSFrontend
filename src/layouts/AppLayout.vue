@@ -7,7 +7,6 @@ import { useThemeStore } from '../stores/theme.store'
 import { EVENT_READ_ROLES, SUBMIT_EVENT_ROLES } from '../api/events.api'
 import { REPORT_ROLES } from '../api/reports.api'
 import NotificationBell from '../components/NotificationBell.vue'
-import { formatUserDisplayName } from '../utils/user-name'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
