@@ -30,6 +30,12 @@ export const routes: RouteRecordRaw[] = [
     name: 'welcome',
     component: WelcomeView,
     meta: { public: true },
+    beforeEnter: () => {
+      if (window.matchMedia?.('(min-width: 768px)').matches) {
+        return { name: 'login' }
+      }
+      return true
+    },
   },
   {
     path: '/login',
