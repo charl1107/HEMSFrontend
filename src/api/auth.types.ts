@@ -15,5 +15,6 @@ export interface SafeUser {
 
 export interface LoginResponse {
   accessToken: string
+  refreshToken?: string
   user: SafeUser
 }

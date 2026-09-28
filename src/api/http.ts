@@ -10,6 +10,28 @@ const accessToken = ref<string | null>(null)
 let unauthorizedHandler: (() => void) | null = null
 let refreshPromise: Promise<string> | null = null
 
+const REFRESH_TOKEN_KEY = 'hems_refresh_token'
+
+export function getStoredRefreshToken(): string | null {
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setStoredRefreshToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token)
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_KEY)
+    }
+  } catch {
+    // Ignore localStorage write failures (e.g. storage disabled / quota)
+  }
+}
+
 export function setAccessToken(token: string | null): void {
   accessToken.value = token
 }
@@ -20,6 +42,7 @@ export function getAccessToken(): string | null {
 
 export function clearAccessToken(): void {
   accessToken.value = null
+  setStoredRefreshToken(null)
 }
 
 export function onUnauthorized(handler: () => void): void {
@@ -55,7 +78,9 @@ export const http = axios.create({
 export const authHttp = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true,
-  timeout: 15000,
+  // Render free-tier cold-starts can take 30-60 seconds; a 15 s timeout
+  // causes the refresh to fail silently and forces a re-login.
+  timeout: 90_000,
 })
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean }
@@ -69,15 +94,34 @@ http.interceptors.request.use((config) => {
 
 async function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
-    refreshPromise = authHttp
-      .post<{ accessToken: string; user: SafeUser }>('/auth/refresh')
-      .then(({ data }) => {
-        accessToken.value = data.accessToken
-        return data.accessToken
-      })
-      .finally(() => {
-        refreshPromise = null
-      })
+    refreshPromise = (async () => {
+      // Retry once — the first attempt may time out while Render
+      // cold-starts the backend; the second hits a warm server.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const storedToken = getStoredRefreshToken()
+          const { data } = await authHttp.post<{
+            accessToken: string
+            refreshToken?: string
+            user: SafeUser
+          }>('/auth/refresh', storedToken ? { refreshToken: storedToken } : {})
+          accessToken.value = data.accessToken
+          if (data.refreshToken) {
+            setStoredRefreshToken(data.refreshToken)
+          }
+          return data.accessToken
+        } catch (err) {
+          if (attempt === 0 && isAxiosError(err) && (!err.response || err.code === 'ECONNABORTED')) {
+            // Network error or timeout — Render is likely cold-starting. Retry.
+            continue
+          }
+          throw err
+        }
+      }
+      throw new Error('Refresh failed after retries')
+    })().finally(() => {
+      refreshPromise = null
+    })
   }
   return refreshPromise
 }

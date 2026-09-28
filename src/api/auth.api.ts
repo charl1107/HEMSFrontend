@@ -1,4 +1,4 @@
-import { http, authHttp } from './http'
+import { http, authHttp, getStoredRefreshToken } from './http'
 import type { LoginResponse, SafeUser } from './auth.types'
 
 export type { LoginResponse, SafeUser }
@@ -8,13 +8,18 @@ export async function login(email: string, password: string): Promise<LoginRespo
   return data
 }
 
-export async function refresh(): Promise<LoginResponse> {
-  const { data } = await authHttp.post<LoginResponse>('/auth/refresh')
+export async function refresh(token?: string): Promise<LoginResponse> {
+  const refreshToken = token || getStoredRefreshToken()
+  const { data } = await authHttp.post<LoginResponse>(
+    '/auth/refresh',
+    refreshToken ? { refreshToken } : {},
+  )
   return data
 }
 
 export async function logout(): Promise<void> {
-  await authHttp.post('/auth/logout')
+  const refreshToken = getStoredRefreshToken()
+  await authHttp.post('/auth/logout', refreshToken ? { refreshToken } : {})
 }
 
 export async function me(): Promise<SafeUser> {

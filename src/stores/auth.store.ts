@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import type { SafeUser } from '../api/auth.types'
 import { login as apiLogin, logout as apiLogout, me as apiMe, refresh as apiRefresh } from '../api/auth.api'
-import { setAccessToken, clearAccessToken, getAccessToken, onUnauthorized } from '../api/http'
+import { setAccessToken, clearAccessToken, getAccessToken, onUnauthorized, setStoredRefreshToken } from '../api/http'
 import { landingRoute } from '../router/landing-route'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -14,15 +14,18 @@ export const useAuthStore = defineStore('auth', () => {
   const roles = computed(() => user.value?.roles ?? [])
   const isAuthenticated = computed(() => Boolean(user.value && getAccessToken()))
 
-  function setSession(token: string, nextUser: SafeUser): void {
+  function setSession(token: string, nextUser: SafeUser, refreshToken?: string): void {
     setAccessToken(token)
+    if (refreshToken) {
+      setStoredRefreshToken(refreshToken)
+    }
     user.value = nextUser
     ready.value = true
   }
 
   async function login(email: string, password: string): Promise<RouteLocationRaw> {
-    const { accessToken, user: nextUser } = await apiLogin(email, password)
-    setSession(accessToken, nextUser)
+    const { accessToken, refreshToken, user: nextUser } = await apiLogin(email, password)
+    setSession(accessToken, nextUser, refreshToken)
     if (nextUser.mustChangePassword) {
       return { name: 'change-password' }
     }
@@ -53,11 +56,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function restoreSession(): Promise<void> {
     if (!getAccessToken()) {
-      try {
-        const { accessToken, user: nextUser } = await apiRefresh()
-        setSession(accessToken, nextUser)
-      } catch {
-        // No valid refresh cookie — stay signed out.
+      // No in-memory token; try the refresh cookie.
+      // Retry once because Render free-tier may be cold-starting (30-60 s).
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const { accessToken, refreshToken: nextRefreshToken, user: nextUser } = await apiRefresh()
+          setSession(accessToken, nextUser, nextRefreshToken)
+          break
+        } catch {
+          if (attempt === 0) {
+            // First failure — wait briefly then retry in case of cold-start.
+            await new Promise((r) => setTimeout(r, 2_000))
+            continue
+          }
+          // Second failure — genuinely no valid session.
+        }
       }
     } else {
       await fetchMe()
