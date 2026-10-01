@@ -3,11 +3,17 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import UsersView from './UsersView.vue'
-import { listUsers } from '../../api/users.api'
+import { assignRole, listUsers, removeRole } from '../../api/users.api'
+import type { SafeUser } from '../../api/auth.types'
 
 vi.mock('../../api/users.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/users.api')>()
-  return { ...actual, listUsers: vi.fn() }
+  return {
+    ...actual,
+    listUsers: vi.fn(),
+    assignRole: vi.fn(),
+    removeRole: vi.fn(),
+  }
 })
 
 async function mountView() {
@@ -36,6 +42,19 @@ describe('UsersView', () => {
     vi.mocked(listUsers).mockResolvedValue([])
   })
 
+  function makeUser(overrides: Partial<SafeUser> = {}): SafeUser {
+    return {
+      id: 'u-2',
+      email: 'target@hems.local',
+      firstName: 'T',
+      lastName: 'User',
+      isActive: true,
+      roles: ['Student'],
+      mustChangePassword: false,
+      ...overrides,
+    }
+  }
+
   it('shows an Add Student button that opens the overlay', async () => {
     const wrapper = await mountView()
 
@@ -56,5 +75,72 @@ describe('UsersView', () => {
     const wrapper = await mountView()
     await wrapper.find('[data-testid="open-bulk-import"]').trigger('click')
     expect(document.querySelector('[data-testid="bulk-import-students"]')).not.toBeNull()
+  })
+
+  it('shows the assigned role in the cell without a reload even when the assignRole response omits roles', async () => {
+    vi.mocked(listUsers)
+      .mockResolvedValueOnce([makeUser()])
+      .mockResolvedValueOnce([makeUser({ roles: ['Student', 'Instructor'] })])
+    // Deployed contract observed by QA (U8): response without the updated roles array.
+    vi.mocked(assignRole).mockResolvedValue({ id: 'u-2' } as SafeUser)
+
+    const wrapper = await mountView()
+
+    await wrapper
+      .find('[data-testid="assign-select-target@hems.local"]')
+      .setValue('Instructor')
+    await wrapper
+      .find('[data-testid="assign-btn-target@hems.local"]')
+      .trigger('click')
+    await flushPromises()
+
+    const cell = wrapper.find(
+      '[data-testid="user-row-target@hems.local"] .users__roles-cell',
+    )
+    expect(cell.text()).toContain('Instructor')
+  })
+
+  it('re-fetches the user list after assignRole succeeds', async () => {
+    vi.mocked(listUsers)
+      .mockResolvedValueOnce([makeUser()])
+      .mockResolvedValueOnce([makeUser({ roles: ['Student', 'Instructor'] })])
+    vi.mocked(assignRole).mockResolvedValue(
+      makeUser({ roles: ['Student', 'Instructor'] }),
+    )
+
+    const wrapper = await mountView()
+
+    await wrapper
+      .find('[data-testid="assign-select-target@hems.local"]')
+      .setValue('Instructor')
+    await wrapper
+      .find('[data-testid="assign-btn-target@hems.local"]')
+      .trigger('click')
+    await flushPromises()
+
+    expect(listUsers).toHaveBeenCalledTimes(2)
+    expect(
+      wrapper.find('[data-testid="user-row-target@hems.local"]').text(),
+    ).toContain('Instructor')
+  })
+
+  it('re-fetches the user list after a role is removed', async () => {
+    vi.mocked(listUsers)
+      .mockResolvedValueOnce([makeUser({ roles: ['Student', 'Instructor'] })])
+      .mockResolvedValueOnce([makeUser()])
+    vi.mocked(removeRole).mockResolvedValue(makeUser())
+
+    const wrapper = await mountView()
+
+    await wrapper
+      .find('[data-testid="remove-role-target@hems.local-Instructor"]')
+      .trigger('click')
+    await flushPromises()
+
+    expect(listUsers).toHaveBeenCalledTimes(2)
+    const cell = wrapper.find(
+      '[data-testid="user-row-target@hems.local"] .users__roles-cell',
+    )
+    expect(cell.text()).not.toContain('Instructor')
   })
 })

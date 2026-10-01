@@ -5,6 +5,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EventsListView from './EventsListView.vue'
 import { useAuthStore } from '../../../stores/auth.store'
+import { expectSequentialHeadings } from '../../../test-utils/headings'
 import { listEvents, type EventRecord } from '../../../api/events.api'
 
 vi.mock('../../../api/events.api', async (importOriginal) => {
@@ -174,5 +175,37 @@ describe('EventsListView', () => {
     const wrapper = await mountList(router)
 
     expect(wrapper.find('[data-testid="load-more-events"]').exists()).toBe(false)
+  })
+
+  it('shows "No events yet." when no filters are set and the result is empty', async () => {
+    setRoles(['Department Head'])
+    vi.mocked(listEvents).mockResolvedValue({ items: [], total: 0 })
+    const wrapper = await mountList(router)
+
+    const empty = wrapper.find('[data-testid="events-empty"]')
+    expect(empty.exists()).toBe(true)
+    expect(empty.text()).toContain('No events yet.')
+    expect(empty.text()).not.toContain('No events match the current filters.')
+  })
+
+  it('keeps the filtered empty-state copy when a filter is active', async () => {
+    setRoles(['Department Head'])
+    vi.mocked(listEvents).mockResolvedValue({ items: [], total: 0 })
+    const wrapper = await mountList(router)
+
+    await wrapper.find('[data-testid="status-filter"]').setValue('Approved')
+    await flushPromises()
+
+    const empty = wrapper.find('[data-testid="events-empty"]')
+    expect(empty.exists()).toBe(true)
+    expect(empty.text()).toContain('No events match the current filters.')
+  })
+
+  it('renders headings in sequential order with events on screen (axe heading-order)', async () => {
+    setRoles(['Department Head'])
+    const wrapper = await mountList(router)
+
+    expect(wrapper.find('[data-testid="events-table"]').exists()).toBe(true)
+    expectSequentialHeadings(wrapper)
   })
 })

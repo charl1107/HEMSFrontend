@@ -41,6 +41,15 @@ const filteredEvents = computed(() => {
   })
 })
 
+const hasActiveFilters = computed(() =>
+  Boolean(
+    searchQuery.value.trim() ||
+      statusFilter.value ||
+      typeFilter.value ||
+      campusFilter.value,
+  ),
+)
+
 function descriptionExcerpt(value: string | null): string | null {
   if (!value) return null
   const normalized = value.trim().replace(/\s+/g, ' ')
@@ -164,7 +173,7 @@ onMounted(() => {
             </EventCard>
           </div>
           <p v-else class="events-list__empty" data-testid="events-empty">
-            No events match the current filters.
+            {{ hasActiveFilters ? 'No events match the current filters.' : 'No events yet.' }}
           </p>
           <button
             v-if="events.length < total"

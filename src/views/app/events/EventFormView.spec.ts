@@ -7,6 +7,7 @@ import EventFormView from './EventFormView.vue'
 import {
   createEvent,
   getEvent,
+  removeCover,
   updateEvent,
   uploadCover,
   type EventMutationResult,
@@ -283,5 +284,35 @@ describe('EventFormView', () => {
       wrapper.find<HTMLButtonElement>('[data-testid="event-submit"]').element
         .disabled,
     ).toBe(false)
+  })
+
+  it('remove cover asks for confirmation before calling removeCover', async () => {
+    vi.mocked(getEvent).mockResolvedValue(
+      makeEvent({ id: 'e1', status: 'Draft', coverImageUrl: '/covers/x.jpg' }),
+    )
+    vi.mocked(removeCover).mockResolvedValue(
+      makeEvent({ id: 'e1', status: 'Draft', coverImageUrl: null }),
+    )
+
+    const wrapper = await mountAt(router, 'event-edit', { id: 'e1' })
+    await flushPromises()
+
+    await wrapper.find('[data-testid="remove-cover"]').trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.find('[data-testid="confirm-dialog"]')
+    expect(dialog.exists()).toBe(true)
+    expect(dialog.text()).toContain('Remove cover image')
+    expect(removeCover).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="confirm-dialog-cancel"]').trigger('click')
+    expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(false)
+    expect(removeCover).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="remove-cover"]').trigger('click')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(removeCover).toHaveBeenCalledWith('e1')
   })
 })

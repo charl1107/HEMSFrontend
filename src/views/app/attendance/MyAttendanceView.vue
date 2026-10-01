@@ -160,7 +160,7 @@ onMounted(load)
 }
 .my-attendance__readonly {
   margin: 0.75rem 0 0;
-  color: var(--gray-400);
+  color: var(--muted);
   font-size: 0.85em;
   font-style: italic;
 }

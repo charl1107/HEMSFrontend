@@ -51,7 +51,9 @@ export function onUnauthorized(handler: () => void): void {
 
 export function apiErrorMessage(error: unknown, fallback: string): string {
   if (isAxiosError(error)) {
-    const body = error.response?.data as { message?: unknown } | undefined
+    const body = error.response?.data as
+      | { message?: unknown; error?: unknown }
+      | undefined
     const message = body?.message
     if (typeof message === 'string' && message.trim()) return message.trim()
     if (Array.isArray(message)) {
@@ -59,10 +61,18 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
         .filter((entry): entry is string => typeof entry === 'string')
         .map((entry) => entry.trim())
         .filter(Boolean)
-        .join(' ')
+        .join(', ')
       if (joined) return joined
     }
-    if (error.message) return error.message
+    const serverError = body?.error
+    if (typeof serverError === 'string' && serverError.trim()) {
+      return serverError.trim()
+    }
+    // HTTP errors with a response: never leak raw axios text like
+    // "Request failed with status code 500" — show the generic fallback.
+    // Errors without a response (network offline) keep the axios message;
+    // AttendanceCaptureView's isNetworkError relies on the no-response path.
+    if (!error.response && error.message) return error.message
     return fallback
   }
   if (error instanceof Error && error.message) return error.message

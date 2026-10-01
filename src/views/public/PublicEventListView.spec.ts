@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PublicEventListView from './PublicEventListView.vue'
 import { listPublicEvents, type EventRecord } from '../../api/events.api'
+import { expectSequentialHeadings } from '../../test-utils/headings'
 
 vi.mock('../../api/events.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/events.api')>()
@@ -119,5 +120,12 @@ describe('PublicEventListView', () => {
     expect(wrapper.find('[data-testid="load-more-public-events"]').exists()).toBe(
       false,
     )
+  })
+
+  it('renders headings in sequential order with events on screen (axe heading-order)', async () => {
+    const wrapper = await mountView(router)
+
+    expect(wrapper.text()).toContain('Spring Fair')
+    expectSequentialHeadings(wrapper)
   })
 })

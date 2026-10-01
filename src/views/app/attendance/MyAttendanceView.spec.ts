@@ -11,6 +11,7 @@ import {
   type MyAttendanceRow,
 } from '../../../api/attendance.api'
 import { listEvents } from '../../../api/events.api'
+import { expectSequentialHeadings } from '../../../test-utils/headings'
 
 vi.mock('../../../api/attendance.api', async (importOriginal) => {
   const actual = await importOriginal<
@@ -165,5 +166,14 @@ describe('MyAttendanceView', () => {
     expect(
       wrapper.find('[data-testid="my-attendance-list"]').exists(),
     ).toBe(false)
+  })
+
+  it('renders headings in sequential order (axe heading-order)', async () => {
+    const wrapper = await mountView(router)
+
+    expect(wrapper.find('[data-testid="my-attendance-list"]').exists()).toBe(
+      true,
+    )
+    expectSequentialHeadings(wrapper)
   })
 })

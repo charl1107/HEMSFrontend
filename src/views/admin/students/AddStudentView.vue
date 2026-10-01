@@ -439,7 +439,7 @@ function onStatusChange(event: Event) {
 
 .add-student__input:focus {
   border-color: var(--accent-line);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.2);
 }
 
 .add-student__input[aria-invalid='true'] {

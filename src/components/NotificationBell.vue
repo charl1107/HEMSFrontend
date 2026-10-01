@@ -12,6 +12,7 @@ const notifications = ref<NotificationRecord[]>([])
 const open = ref(false)
 const loading = ref(false)
 const root = ref<HTMLElement | null>(null)
+const trigger = ref<HTMLButtonElement | null>(null)
 const route = useRoute()
 
 const unreadCount = computed(() => countUnread(notifications.value))
@@ -45,8 +46,17 @@ function toggle(): void {
 }
 
 function onClickOutside(event: MouseEvent): void {
+  if (!open.value) return
   if (root.value && !root.value.contains(event.target as Node)) {
     open.value = false
+  }
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && open.value) {
+    open.value = false
+    // Return focus to the control that opened the popover.
+    trigger.value?.focus()
   }
 }
 
@@ -63,11 +73,23 @@ function formatTime(iso: string): string {
 
 onMounted(() => {
   void refresh()
-  document.addEventListener('mousedown', onClickOutside)
+})
+
+// Listeners are active only while the popover is open, so a stray document
+// click can never race the open/close toggle; always detach on unmount too.
+watch(open, (isOpen) => {
+  if (isOpen) {
+    document.addEventListener('click', onClickOutside)
+    document.addEventListener('keydown', onKeydown)
+  } else {
+    document.removeEventListener('click', onClickOutside)
+    document.removeEventListener('keydown', onKeydown)
+  }
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', onClickOutside)
+  document.removeEventListener('click', onClickOutside)
+  document.removeEventListener('keydown', onKeydown)
 })
 
 watch(
@@ -84,6 +106,7 @@ defineExpose({ refresh })
   <div ref="root" class="notification-bell">
     <button
       type="button"
+      ref="trigger"
       class="notification-bell__trigger"
       aria-label="Notifications"
       data-testid="notification-bell"
@@ -170,6 +193,19 @@ defineExpose({ refresh })
 .notification-bell__trigger:hover {
   background: var(--rose-line);
   border-color: var(--pink-line);
+}
+
+/*
+ * 44px hit area (touch target) without changing the visual 35px circle.
+ */
+.notification-bell__trigger::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  transform: translate(-50%, -50%);
 }
 
 .notification-bell__icon {
@@ -270,5 +306,23 @@ defineExpose({ refresh })
 .notification-bell__time {
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+@media (max-width: 767px) {
+  /*
+   * The phone header wraps into two rows, so the bell sits mid-row rather than
+   * near the right edge. Right-anchoring a 20rem panel to the bell put its left
+   * edge at -162 / -122 / -92 / -68px on 320 / 360 / 390 / 414px screens —
+   * off-screen and unreachable. Anchor to the app bar instead (the nearest
+   * positioned ancestor) and clamp the width to what the viewport allows.
+   */
+  .notification-bell {
+    position: static;
+  }
+
+  .notification-bell__panel {
+    right: 1.5rem; /* matches the app bar's mobile padding */
+    max-width: calc(100% - 3rem);
+  }
 }
 </style>

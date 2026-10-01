@@ -178,6 +178,7 @@ describe('ParticipantsSection', () => {
 
     expect(wrapper.find('[data-testid="participant-row-p1"]').exists()).toBe(true)
     await wrapper.find('[data-testid="participant-remove-p1"]').trigger('click')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
     await flushPromises()
 
     expect(removeParticipant).toHaveBeenCalledWith('e1', 'p1')
@@ -185,6 +186,32 @@ describe('ParticipantsSection', () => {
       'removed',
     )
     expect(wrapper.find('[data-testid="participants-empty"]').exists()).toBe(true)
+  })
+
+  it('remove participant asks for confirmation before calling removeParticipant', async () => {
+    vi.mocked(listParticipants).mockResolvedValue([makeParticipant()])
+    vi.mocked(removeParticipant).mockResolvedValue()
+
+    const wrapper = mountSection()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="participant-remove-p1"]').trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.find('[data-testid="confirm-dialog"]')
+    expect(dialog.exists()).toBe(true)
+    expect(dialog.text()).toContain('Remove participant')
+    expect(removeParticipant).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="confirm-dialog-cancel"]').trigger('click')
+    expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(false)
+    expect(removeParticipant).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="participant-remove-p1"]').trigger('click')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(removeParticipant).toHaveBeenCalledWith('e1', 'p1')
   })
 
   it('hides management controls for viewers without manage rights', async () => {

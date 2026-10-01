@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, Card, ConflictWarningBanner } from '@/components/ui'
+import { Button, Card, ConfirmDialog, ConflictWarningBanner } from '@/components/ui'
 import { submitForApproval } from '../../../api/approvals.api'
 import {
   createEvent,
@@ -219,6 +219,21 @@ async function onRemoveCover(): Promise<void> {
   }
 }
 
+const pendingRemoveCover = ref(false)
+
+function openDialog(): void {
+  pendingRemoveCover.value = true
+}
+
+function cancelDialog(): void {
+  pendingRemoveCover.value = false
+}
+
+async function confirmDialog(): Promise<void> {
+  pendingRemoveCover.value = false
+  await onRemoveCover()
+}
+
 onMounted(loadExisting)
 </script>
 
@@ -362,7 +377,7 @@ onMounted(loadExisting)
               severity="secondary"
               data-testid="remove-cover"
               :disabled="coverUploading || saving"
-              @click="onRemoveCover"
+              @click="openDialog"
             />
           </fieldset>
 
@@ -389,6 +404,17 @@ onMounted(loadExisting)
             />
           </div>
         </form>
+
+        <ConfirmDialog
+          :open="pendingRemoveCover"
+          title="Remove cover image"
+          message="Remove the cover image from this event? This cannot be undone."
+          confirm-label="Remove"
+          cancel-label="Cancel"
+          destructive
+          @confirm="confirmDialog"
+          @cancel="cancelDialog"
+        />
       </template>
     </component>
   </component>
@@ -465,6 +491,13 @@ onMounted(loadExisting)
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  /* <fieldset> has an intrinsic min-width of min-content, which pushed this
+     box past the viewport on 360px phones (file input + buttons cannot wrap). */
+  min-width: 0;
+  max-width: 100%;
+}
+.event-form__cover > :where(input, p, img, button) {
+  max-width: 100%;
 }
 .event-form__cover-preview {
   max-width: 280px;

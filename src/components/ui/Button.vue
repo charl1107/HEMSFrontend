@@ -34,6 +34,9 @@ defineProps<{
   background: var(--accent-btn);
   color: #fff;
 }
+.ui-button--primary:hover:not(:disabled) {
+  background: var(--accent-btn-hover);
+}
 .ui-button--secondary {
   background: var(--fill);
   color: var(--text-strong);

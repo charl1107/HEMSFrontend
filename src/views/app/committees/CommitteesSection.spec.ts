@@ -185,6 +185,7 @@ describe('CommitteesSection', () => {
 
     expect(wrapper.find('[data-testid="member-m1"]').exists()).toBe(true)
     await wrapper.find('[data-testid="member-remove-c1-u5"]').trigger('click')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
     await flushPromises()
 
     expect(removeCommitteeMember).toHaveBeenCalledWith('e1', 'c1', 'u5')
@@ -192,6 +193,32 @@ describe('CommitteesSection', () => {
       'removed',
     )
     expect(wrapper.find('[data-testid="committee-members-empty"]').exists()).toBe(true)
+  })
+
+  it('remove committee member asks for confirmation before calling removeCommitteeMember', async () => {
+    vi.mocked(listCommittees).mockResolvedValue([makeCommittee()])
+    vi.mocked(removeCommitteeMember).mockResolvedValue()
+
+    const wrapper = mountSection()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="member-remove-c1-u5"]').trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.find('[data-testid="confirm-dialog"]')
+    expect(dialog.exists()).toBe(true)
+    expect(dialog.text()).toContain('Remove committee member')
+    expect(removeCommitteeMember).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="confirm-dialog-cancel"]').trigger('click')
+    expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(false)
+    expect(removeCommitteeMember).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="member-remove-c1-u5"]').trigger('click')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(removeCommitteeMember).toHaveBeenCalledWith('e1', 'c1', 'u5')
   })
 
   it('hides management controls for viewers without manage rights', async () => {

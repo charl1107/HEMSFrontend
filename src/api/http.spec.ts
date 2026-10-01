@@ -27,15 +27,32 @@ describe('apiErrorMessage', () => {
       message: ['title must be a string', 'deadline must be a date'],
     })
     expect(apiErrorMessage(err, 'Failed')).toBe(
-      'title must be a string deadline must be a date',
+      'title must be a string, deadline must be a date',
     )
   })
 
-  it('falls back to the axios message when the body has no message', () => {
+  it('falls back to the generic message for HTTP errors without a server message (never raw axios text)', () => {
     const err = axiosLike(500, {}, 'Request failed with status code 500')
+    expect(apiErrorMessage(err, 'Failed')).toBe('Failed')
+  })
+
+  it('returns a single-entry validation array as the string itself', () => {
+    const err = axiosLike(400, {
+      message: ['department must be longer than or equal to 1 characters'],
+    })
     expect(apiErrorMessage(err, 'Failed')).toBe(
-      'Request failed with status code 500',
+      'department must be longer than or equal to 1 characters',
     )
+  })
+
+  it('returns the server message "Title taken" from a 400 response', () => {
+    const err = axiosLike(400, { message: 'Title taken' })
+    expect(apiErrorMessage(err, 'Failed')).toBe('Title taken')
+  })
+
+  it('returns the server error field when the body has no message', () => {
+    const err = axiosLike(400, { error: 'Rate limited' })
+    expect(apiErrorMessage(err, 'Failed')).toBe('Rate limited')
   })
 
   it('uses the axios message for network errors without a response', () => {

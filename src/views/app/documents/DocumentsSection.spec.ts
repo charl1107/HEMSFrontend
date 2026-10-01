@@ -199,6 +199,7 @@ describe('DocumentsSection', () => {
     await flushPromises()
 
     await wrapper.find('[data-testid="document-delete-d1"]').trigger('click')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
     await flushPromises()
 
     expect(removeDocument).toHaveBeenCalledWith('e1', 'd1')
@@ -206,6 +207,32 @@ describe('DocumentsSection', () => {
       'deleted',
     )
     expect(wrapper.find('[data-testid="documents-empty"]').exists()).toBe(true)
+  })
+
+  it('delete document asks for confirmation before calling removeDocument', async () => {
+    vi.mocked(listDocuments).mockResolvedValue([makeDoc()])
+    vi.mocked(removeDocument).mockResolvedValue()
+
+    const wrapper = mountSection()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="document-delete-d1"]').trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.find('[data-testid="confirm-dialog"]')
+    expect(dialog.exists()).toBe(true)
+    expect(dialog.text()).toContain('Delete document')
+    expect(removeDocument).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="confirm-dialog-cancel"]').trigger('click')
+    expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(false)
+    expect(removeDocument).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="document-delete-d1"]').trigger('click')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(removeDocument).toHaveBeenCalledWith('e1', 'd1')
   })
 
   it('hides upload and delete for viewers without manage rights', async () => {

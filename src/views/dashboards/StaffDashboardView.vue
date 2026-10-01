@@ -71,6 +71,23 @@ onMounted(load)
       </div>
     </header>
 
+    <div
+      v-if="auth.deniedPath"
+      class="dashboard__denied"
+      role="alert"
+      data-testid="access-denied"
+    >
+      <span>You don't have access to that page.</span>
+      <button
+        type="button"
+        class="dashboard__denied-dismiss"
+        data-testid="access-denied-dismiss"
+        @click="auth.clearDenied()"
+      >
+        Dismiss
+      </button>
+    </div>
+
     <section class="dashboard__stats">
       <article class="dashboard__stat-card">
         <span class="dashboard__stat-label">Live Active Events</span>
@@ -301,6 +318,32 @@ onMounted(load)
   font-size: 0.9rem;
   line-height: 1.4;
 }
+
+.dashboard__denied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-line);
+  color: var(--danger-strong);
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+.dashboard__denied-dismiss {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--danger-line);
+  background: var(--surface);
+  color: var(--danger-strong);
+  cursor: pointer;
+}
+.dashboard__denied-dismiss:hover { filter: brightness(0.97); }
 
 .dashboard__empty-state {
   display: flex;

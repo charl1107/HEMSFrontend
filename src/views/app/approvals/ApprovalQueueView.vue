@@ -609,7 +609,7 @@ onMounted(load)
   width: 64px;
   text-align: center;
   font-size: 0.7rem;
-  color: var(--gray-400);
+  color: var(--muted);
   border: 1px dashed var(--line);
   border-radius: 6px;
   padding: 0.55rem 0;

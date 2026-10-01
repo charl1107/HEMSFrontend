@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import logoUrl from '@/assets/hospitality_logo.svg'
+// F7: single deduped artwork file (identical emblem, also the PWA icon).
+const logoUrl = '/favicon.svg'
 import { useAuthStore } from '../stores/auth.store'
 import { useThemeStore } from '../stores/theme.store'
 import { EVENT_READ_ROLES, SUBMIT_EVENT_ROLES } from '../api/events.api'
@@ -12,6 +13,45 @@ const auth = useAuthStore()
 const theme = useThemeStore()
 const router = useRouter()
 const mobileOpen = ref(false)
+const barEl = ref<HTMLElement | null>(null)
+const menuButtonEl = ref<HTMLButtonElement | null>(null)
+const navEl = ref<HTMLElement | null>(null)
+const navId = 'app-main-nav'
+const navEdges = reactive({ overflowing: false, canStart: false, canEnd: false })
+
+/*
+ * The tablet nav strip scrolls (768–1023px), and a clipped "Re…" gives no hint
+ * content exists beyond it. Track which edge still hides content so the fade
+ * masks can show only on that side. Measurement is a plain scrollWidth/
+ * clientWidth comparison on scroll + resize; ResizeObserver covers tabs that
+ * appear after mount (tests without a layout engine see 0/0 — affordance off).
+ */
+function useScrollEdges() {
+  const measure = () => {
+    const el = navEl.value
+    if (!el) return
+    const { scrollWidth, clientWidth, scrollLeft } = el
+    navEdges.overflowing = scrollWidth > clientWidth
+    navEdges.canStart = scrollLeft > 0
+    navEdges.canEnd = scrollLeft + clientWidth < scrollWidth
+  }
+  const observer =
+    typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+  onMounted(() => {
+    measure()
+    if (navEl.value) {
+      observer?.observe(navEl.value)
+      navEl.value.addEventListener('scroll', measure, { passive: true })
+    }
+    window.addEventListener('resize', measure)
+  })
+  onBeforeUnmount(() => {
+    observer?.disconnect()
+    navEl.value?.removeEventListener('scroll', measure)
+    window.removeEventListener('resize', measure)
+  })
+}
+useScrollEdges()
 
 const STAFF_ROLES = ['Department Head', 'Event Coordinator', 'Instructor', 'Student Officer', 'Admin']
 const isStudentOnly = computed(() =>
@@ -54,17 +94,47 @@ function toggleMobile() {
 function closeMobile() {
   mobileOpen.value = false
 }
+
+function onDocumentKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !mobileOpen.value) return
+  mobileOpen.value = false
+  // Send focus back to the control that opened the menu.
+  menuButtonEl.value?.focus()
+}
+
+function onDocumentClick(event: MouseEvent) {
+  if (!mobileOpen.value || !barEl.value) return
+  if (!barEl.value.contains(event.target as Node | null)) {
+    mobileOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', onDocumentKeydown)
+  document.addEventListener('click', onDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onDocumentKeydown)
+  document.removeEventListener('click', onDocumentClick)
+})
 </script>
 
 <template>
   <div class="app-layout" :class="{ dark: theme.theme === 'dark' }">
-    <header class="app-bar" :class="{ 'app-bar--menu-open': mobileOpen }">
+    <header
+      ref="barEl"
+      class="app-bar"
+      :class="{ 'app-bar--menu-open': mobileOpen }"
+    >
       <div class="app-bar__left">
         <button
+          ref="menuButtonEl"
           type="button"
           class="app-bar__hamburger"
           aria-label="Toggle navigation"
           :aria-expanded="mobileOpen"
+          :aria-controls="navId"
           data-testid="mobile-nav-toggle"
           @click="toggleMobile"
         >
@@ -83,10 +153,21 @@ function closeMobile() {
       </div>
 
       <nav
+        :id="navId"
+        ref="navEl"
         class="app-bar__nav"
-        :class="{ 'app-bar__nav--open': mobileOpen }"
+        :class="{
+          'app-bar__nav--open': mobileOpen,
+          'is-scrollable': navEdges.overflowing,
+        }"
         aria-label="Main navigation"
       >
+        <span
+          v-if="navEdges.overflowing"
+          class="app-bar__nav-fade app-bar__nav-fade--left"
+          :class="{ 'is-visible': navEdges.canStart }"
+          aria-hidden="true"
+        />
         <RouterLink
           v-if="auth.isAuthenticated"
           class="app-bar__tab"
@@ -162,6 +243,12 @@ function closeMobile() {
           data-testid="logout"
           @click="onLogout"
         >Sign out</button>
+        <span
+          v-if="navEdges.overflowing"
+          class="app-bar__nav-fade app-bar__nav-fade--right"
+          :class="{ 'is-visible': navEdges.canEnd }"
+          aria-hidden="true"
+        />
       </nav>
 
       <div v-if="auth.isAuthenticated" class="app-bar__profile">
@@ -450,17 +537,25 @@ function closeMobile() {
 .app-bar__signout:hover { background: var(--rose-soft); color: var(--brand-text); }
 .app-bar__logout-tablet { display: none; }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .app-bar--menu-open {
     z-index: 1000;
   }
 
   .app-bar {
+    /* The bar is styled as a translucent, blurred glass panel — it has to
+       stay pinned for that treatment to mean anything, otherwise phone users
+       must scroll back to the top to reach the nav or notifications. */
+    position: sticky;
+    top: 0;
+    z-index: 60;
     flex-wrap: wrap;
     justify-content: flex-start;
     column-gap: 0.75rem;
     row-gap: 0.1rem;
-    padding: 0.45rem 0.75rem 0.5rem;
+    /* 1.5rem matches the page content gutter, so the controls line up with the
+       cards below exactly as they do on desktop (24px = 24px). */
+    padding: 0.45rem 1.5rem 0.5rem;
   }
 
   .app-bar__left {
@@ -471,6 +566,23 @@ function closeMobile() {
   .app-bar__hamburger {
     display: flex;
     flex: 0 0 auto;
+  }
+
+  /* 44px touch target around the 29px control — visual size unchanged. */
+  .app-bar__hamburger,
+  .app-bar__theme {
+    position: relative;
+  }
+
+  .app-bar__hamburger::before,
+  .app-bar__theme::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--tap-min);
+    height: var(--tap-min);
+    transform: translate(-50%, -50%);
   }
 
   .app-bar__nav {
@@ -537,7 +649,7 @@ function closeMobile() {
 
 @media (max-width: 520px) {
   .app-bar {
-    padding: 0.35rem 0.7rem 0.4rem;
+    padding: 0.35rem 1.5rem 0.4rem;
   }
 
   .app-bar__brand {
@@ -569,7 +681,7 @@ function closeMobile() {
 
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .app-bar__logout-tablet {
     display: inline-flex;
     align-items: center;
@@ -594,14 +706,94 @@ function closeMobile() {
   .app-bar__tab { padding: 0.48rem 0.65rem; }
 }
 
-@media (max-width: 767px) {
+/*
+ * Below 1024px the whole bar switches to the mobile treatment: hamburger +
+ * dropdown nav (see the max-width: 1023px blocks). A horizontally scrollable
+ * tab strip used to live at 768-1023px, but only ~3 of the 7 tabs fit there,
+ * so it needed a forced scrollbar to be usable at all — the hamburger
+ * replaces it (U2 follow-up).
+ * 1024-1279px: brand (203px) + avatar-only profile leave the tab bar plenty;
+ * drop the name/role so every tab fits on one row (120px -> 79px).
+ */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .app-bar__profile-meta { display: none; }
+}
+
+@media (min-width: 1024px) {
+  .app-bar__nav {
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .app-bar__tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /*
+   * At 1024px+ the tabs fit on one row, so this strip rarely scrolls — but if
+   * labels ever grow (locale, new routes), Chrome's default overlay scrollbar
+   * never appears until you swipe, which hides the rest of the navigation —
+   * force a slim, always-visible 6px bar instead (it only renders when the
+   * tabs actually overflow).
+   */
+  .app-bar__nav::-webkit-scrollbar { height: 6px; }
+  .app-bar__nav::-webkit-scrollbar-track { background: transparent; }
+  .app-bar__nav::-webkit-scrollbar-thumb {
+    /* --rose-line is a hairline colour: invisible as a 6px thumb in both
+       themes. --muted-plum reads in light (#5f4f66) and dark (#b3a4bd). */
+    background: var(--muted-plum);
+    border-radius: 999px;
+  }
+  .app-bar__nav::-webkit-scrollbar-thumb:hover { background: var(--brand-text); }
+
+  /*
+   * The forced scrollbar only becomes obvious once you know to look, and
+   * a clipped edge gives no hint content exists beyond it. Fade the clipped
+   * edge out in the nav's own --page colour (what the tabs sit on); each side
+   * renders only while THAT edge still has more content — the component's
+   * scroll listener toggles .is-visible. The fades are position: sticky flex
+   * items: absolutely-positioned children of a scroll container scroll away
+   * WITH the content (verified in-browser — the fade drifted out of view on
+   * scroll), while sticky ones stay glued to the visible edge across the whole
+   * scroll range. Negative margins stop the 1.75rem basis + 0.25rem gap from
+   * consuming tab space; pointer-events keeps clicks on tabs; the flex line
+   * stretch stops above the forced 6px scrollbar.
+   */
+  .app-bar__nav-fade {
+    position: sticky;
+    flex: 0 0 1.75rem;
+    align-self: stretch;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .app-bar__nav-fade--left {
+    left: 0;
+    margin-right: calc(-1.75rem - 0.25rem);
+    background: linear-gradient(to right, var(--page) 30%, transparent);
+  }
+
+  .app-bar__nav-fade--right {
+    right: 0;
+    margin-left: calc(-1.75rem - 0.25rem);
+    background: linear-gradient(to left, var(--page) 30%, transparent);
+  }
+
+  .app-bar__nav-fade.is-visible { opacity: 1; }
+}
+
+@media (max-width: 1023px) {
   .app-bar {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     column-gap: 0.4rem;
     row-gap: 0.15rem;
-    padding: 0.5rem 0.7rem;
+    padding: 0.5rem 1.5rem;
   }
 
   .app-bar__left {
@@ -629,7 +821,14 @@ function closeMobile() {
   }
 
   .app-bar__avatar { flex: 0 0 2.2rem; width: 2.2rem; height: 2.2rem; }
-  .app-bar__profile-meta { max-width: 4.5rem; }
+
+  /*
+   * Drop the name/role so bell + avatar + theme (118px) fit alongside the brand
+   * (198px) inside the 327px content box at 390px — the bar goes from two rows /
+   * 90px to a single ~48px row. The avatar initials still identify the user,
+   * which is the same treatment tablets get below from 768px.
+   */
+  .app-bar__profile-meta { display: none; }
   .app-bar__user { font-size: 0.8rem; }
   .app-bar__role {
     display: inline-flex;
@@ -640,6 +839,21 @@ function closeMobile() {
 
   .app-bar__theme { flex-basis: 2.3rem; width: 2.3rem; height: 2.3rem; }
   .app-bar__theme svg { width: 1.1rem; height: 1.1rem; }
+}
+
+/*
+ * Phones narrower than 390px cannot fit the brand (198px) plus the profile
+ * cluster (118px) inside their content box, so flex-wrap pushes the profile to
+ * a second row and the bar jumps to 90px — the split, lopsided header.
+ * Dropping the tagline and tightening both gaps lands at ~291px, which keeps
+ * the bar one 54px row from 390px down to about 355px (360 and 375 included).
+ * Below that the box is simply too small and it wraps again — 320px still uses
+ * two rows rather than shrinking the logo, title and hamburger to force it.
+ */
+@media (max-width: 389px) {
+  .app-bar { column-gap: 0.1rem; }
+  .app-bar__tag { display: none; }
+  .app-bar__profile { gap: 0.15rem; }
 }
 
 </style>

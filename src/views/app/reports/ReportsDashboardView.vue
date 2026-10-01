@@ -212,7 +212,7 @@ onMounted(load)
                 <th scope="col">Absent</th>
                 <th scope="col">Missing</th>
                 <th scope="col">Present rate</th>
-                <th scope="col"></th>
+                <th scope="col"><span class="sr-only">Report</span></th>
               </tr>
             </thead>
             <tbody>

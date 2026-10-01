@@ -53,8 +53,10 @@ async function onAssign(user: SafeUser) {
   if (!role) return
   error.value = null
   try {
-    const updated = await assignRole(user.id, role)
-    users.value = users.value.map((u: SafeUser) => (u.id === updated.id ? updated : u))
+    await assignRole(user.id, role)
+    // Re-fetch instead of patching from the response: one extra request, zero
+    // staleness — works even if assignRole's response omits the updated roles.
+    await load()
     setPending(user.id, '')
   } catch (err) {
     error.value = apiErrorMessage(err, 'Failed to assign role')
@@ -64,8 +66,8 @@ async function onAssign(user: SafeUser) {
 async function onRemoveRole(user: SafeUser, role: string) {
   error.value = null
   try {
-    const updated = await removeUserRole(user.id, role)
-    users.value = users.value.map((current) => current.id === updated.id ? updated : current)
+    await removeUserRole(user.id, role)
+    await load()
   } catch (err) {
     error.value = apiErrorMessage(err, `Could not remove the ${role} role`)
   }
@@ -216,6 +218,17 @@ onMounted(load)
   cursor: pointer;
 }
 .users__role--removable:hover { filter: brightness(0.94); }
+
+@media (max-width: 767px) {
+  /* chips are buttons in the mobile card layout — keep them finger-sized,
+     and keep the two chip variants the same height as each other. */
+  .users__role {
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    padding-inline: 0.65rem;
+  }
+}
 .users__assign {
   display: flex;
   flex-wrap: wrap;

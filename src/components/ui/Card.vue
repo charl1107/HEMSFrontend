@@ -6,7 +6,7 @@ defineProps<{
 
 <template>
   <div class="ui-card">
-    <h3 v-if="title" class="ui-card__title">{{ title }}</h3>
+    <h2 v-if="title" class="ui-card__title">{{ title }}</h2>
     <div class="ui-card__body">
       <slot />
     </div>

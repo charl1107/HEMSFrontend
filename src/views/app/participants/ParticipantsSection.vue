@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, ConfirmDialog } from '@/components/ui'
 import {
   addParticipant,
   listParticipants,
@@ -142,6 +142,23 @@ async function onRemove(participant: ParticipantRecord): Promise<void> {
   }
 }
 
+const pendingRemove = ref<ParticipantRecord | null>(null)
+
+function openDialog(participant: ParticipantRecord): void {
+  pendingRemove.value = participant
+}
+
+function cancelDialog(): void {
+  pendingRemove.value = null
+}
+
+async function confirmDialog(): Promise<void> {
+  const participant = pendingRemove.value
+  pendingRemove.value = null
+  if (!participant) return
+  await onRemove(participant)
+}
+
 onMounted(load)
 </script>
 
@@ -262,43 +279,56 @@ onMounted(load)
           />
         </form>
 
-        <table
-          v-if="participants.length"
-          class="roster__table"
-          data-testid="participants-table"
-        >
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Contact</th>
-              <th v-if="showForm">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="participant in participants"
-              :key="participant.id"
-              :data-testid="`participant-row-${participant.id}`"
-            >
-              <td>{{ participantDisplayName(participant) }}</td>
-              <td>{{ participant.participantType }}</td>
-              <td>{{ participant.user?.email ?? '—' }}</td>
-              <td v-if="showForm">
-                <Button
-                  label="Remove"
-                  severity="danger"
-                  :data-testid="`participant-remove-${participant.id}`"
-                  :disabled="busy"
-                  @click="onRemove(participant)"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="roster__empty" data-testid="participants-empty">
-          No participants yet.
-        </p>
+        <div class="table-scroll">
+          <table
+            v-if="participants.length"
+            class="roster__table"
+            data-testid="participants-table"
+          >
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Contact</th>
+                <th v-if="showForm">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="participant in participants"
+                :key="participant.id"
+                :data-testid="`participant-row-${participant.id}`"
+              >
+                <td>{{ participantDisplayName(participant) }}</td>
+                <td>{{ participant.participantType }}</td>
+                <td>{{ participant.user?.email ?? '—' }}</td>
+                <td v-if="showForm">
+                  <Button
+                    label="Remove"
+                    severity="danger"
+                    :data-testid="`participant-remove-${participant.id}`"
+                    :disabled="busy"
+                    @click="openDialog(participant)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-else class="roster__empty" data-testid="participants-empty">
+            No participants yet.
+          </p>
+        </div>
+
+        <ConfirmDialog
+          :open="pendingRemove !== null"
+          title="Remove participant"
+          message="Remove this participant from the event? This cannot be undone."
+          confirm-label="Remove"
+          cancel-label="Cancel"
+          destructive
+          @confirm="confirmDialog"
+          @cancel="cancelDialog"
+        />
       </template>
     </template>
   </Card>

@@ -70,7 +70,10 @@ describe('AppLayout theme toggle', () => {
     const toggle = wrapper.find('[data-testid="theme-toggle"]')
     expect(toggle.exists()).toBe(true)
     expect(toggle.attributes('aria-pressed')).toBe('false')
-    expect(toggle.text()).toContain('Dark mode')
+    // Icon-only toggle (SVG + aria-label/title), so the dark-mode intent lives
+    // in the accessible name rather than in visible text.
+    expect(toggle.attributes('aria-label')).toContain('dark mode')
+    expect(toggle.attributes('title')).toContain('dark mode')
     expect(wrapper.find('.app-layout').classes()).not.toContain('dark')
   })
 
@@ -99,5 +102,111 @@ describe('AppLayout theme toggle', () => {
     expect(
       wrapper.find('[data-testid="theme-toggle"]').attributes('aria-pressed'),
     ).toBe('true')
+  })
+})
+
+describe('AppLayout nav scroll affordance', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.unstubAllGlobals()
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({ matches: false } as MediaQueryList),
+    )
+    setActivePinia(createPinia())
+    const auth = useAuthStore()
+    auth.setSession('token', {
+      id: 'u1',
+      email: 'admin@hems.local',
+      firstName: 'Ada',
+      lastName: 'Admin',
+      isActive: true,
+      roles: ['Admin'],
+      mustChangePassword: false,
+    })
+  })
+
+  // happy-dom never computes layout (scrollWidth === clientWidth === 0), so the
+  // overflow detection is driven by shadowing the geometry getters and
+  // re-measuring through the component's own scroll listener.
+  function mockNavMetrics(
+    el: Element,
+    scrollWidth: number,
+    clientWidth: number,
+    scrollLeft: number,
+  ) {
+    Object.defineProperty(el, 'scrollWidth', {
+      value: scrollWidth,
+      configurable: true,
+    })
+    Object.defineProperty(el, 'clientWidth', {
+      value: clientWidth,
+      configurable: true,
+    })
+    Object.defineProperty(el, 'scrollLeft', {
+      value: scrollLeft,
+      configurable: true,
+    })
+  }
+
+  it('marks the nav scrollable and renders both edge fades when content overflows', async () => {
+    const wrapper = await mountLayout(await createTestRouter())
+    const nav = wrapper.find('.app-bar__nav')
+
+    // Fitting strip (happy-dom 0/0): no affordance, no fades.
+    expect(nav.classes()).not.toContain('is-scrollable')
+    expect(wrapper.find('.app-bar__nav-fade--left').exists()).toBe(false)
+    expect(wrapper.find('.app-bar__nav-fade--right').exists()).toBe(false)
+
+    // Narrow container (600px of tabs in a 300px strip, scrolled to the start).
+    mockNavMetrics(nav.element, 600, 300, 0)
+    await nav.trigger('scroll')
+
+    expect(nav.classes()).toContain('is-scrollable')
+    // Both fades render while overflowing; per-edge visibility follows the
+    // scrolled position — at scrollLeft 0 only the right edge hides content.
+    const left = wrapper.find('.app-bar__nav-fade--left')
+    const right = wrapper.find('.app-bar__nav-fade--right')
+    expect(left.exists()).toBe(true)
+    expect(right.exists()).toBe(true)
+    expect(right.classes()).toContain('is-visible')
+    expect(left.classes()).not.toContain('is-visible')
+  })
+
+  it('toggles each fade as the strip scrolls and clears them when it fits again', async () => {
+    const wrapper = await mountLayout(await createTestRouter())
+    const nav = wrapper.find('.app-bar__nav')
+
+    // Mid-strip: content hidden past both edges.
+    mockNavMetrics(nav.element, 600, 300, 150)
+    await nav.trigger('scroll')
+    expect(wrapper.find('.app-bar__nav-fade--left').classes()).toContain('is-visible')
+    expect(wrapper.find('.app-bar__nav-fade--right').classes()).toContain('is-visible')
+
+    // Scrolled to the end: nothing left to the right.
+    mockNavMetrics(nav.element, 600, 300, 300)
+    await nav.trigger('scroll')
+    expect(wrapper.find('.app-bar__nav-fade--left').classes()).toContain('is-visible')
+    expect(wrapper.find('.app-bar__nav-fade--right').classes()).not.toContain('is-visible')
+
+    // Fits again: affordance off, fades removed entirely.
+    mockNavMetrics(nav.element, 300, 300, 0)
+    await nav.trigger('scroll')
+    expect(nav.classes()).not.toContain('is-scrollable')
+    expect(wrapper.find('.app-bar__nav-fade--left').exists()).toBe(false)
+    expect(wrapper.find('.app-bar__nav-fade--right').exists()).toBe(false)
+  })
+
+  it('keeps every nav tab natively focusable for arrow-scroll reachability', async () => {
+    const wrapper = await mountLayout(await createTestRouter())
+
+    const tabs = wrapper.findAll('.app-bar__tab')
+    expect(tabs.length).toBe(7)
+    expect(
+      tabs.every(
+        (tab) =>
+          tab.element.hasAttribute('href') || tab.element.tagName === 'BUTTON',
+      ),
+    ).toBe(true)
   })
 })

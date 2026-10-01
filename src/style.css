@@ -1,12 +1,15 @@
 @import 'tailwindcss';
 
 :root {
-  --ui-accent: #2563eb;
+  --ui-accent: #be185d;
   --ui-text: #111827;
   --ui-muted: #6b7280;
   --ui-border: #e5e7eb;
   --ui-surface: #fff;
   --ui-radius: 8px;
+
+  /* sizing: minimum touch target (WCAG 2.5.5), used by header controls */
+  --tap-min: 2.75rem; /* 44px */
 
   /* text */
   --text-strong: #111827;
@@ -24,10 +27,10 @@
   --success: #047857;
   --success-strong: #166534;
   --warn-text: #92400e;
-  --accent-text: #2563eb;
+  --accent-text: #be185d;
 
   /* accents and lines */
-  --accent-line: #2563eb;
+  --accent-line: #be185d;
   --focus: #ec4899;
   --pink-line: #f9a8d4;
   --rose-line: #fce7f3;
@@ -50,8 +53,8 @@
   /* buttons and brand fills */
   --brand-btn: #be185d;
   --brand-strong-btn: #db2777;
-  --accent-btn: #2563eb;
-  --accent-btn-hover: #1d4ed8;
+  --accent-btn: #be185d;
+  --accent-btn-hover: #db2777;
   --danger-btn: #dc2626;
   --online-dot: #22c55e;
 
@@ -74,6 +77,10 @@
 .dark {
   color-scheme: dark;
 
+  /* ui tokens: theme-aware body canvas and text (U3) */
+  --ui-surface: #1c1626;
+  --ui-text: #f2ecf5;
+
   /* text */
   --text-strong: #f2ecf5;
   --ink: #f5f0f8;
@@ -89,10 +96,12 @@
   --success: #34d399;
   --success-strong: #6ee7b7;
   --warn-text: #fbbf24;
-  --accent-text: #93c5fd;
+  --accent-text: #f9a8d4;
 
   /* accents and lines */
-  --accent-line: #60a5fa;
+  --accent-line: #f9a8d4;
+  --accent-btn: #be185d;
+  --accent-btn-hover: #db2777;
   --focus: #f472b6;
   --pink-line: #d66daa;
   --rose-line: #3a2b45;
@@ -137,6 +146,56 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * Theme-aware canvas (U3): the page background extends past the content.
+ * `--page` is the themed page surface (light #f8fafc / dark #1c1626), so the
+ * area behind #app and the overscroll region follow the theme — no white band
+ * below content in dark mode.
+ */
+html, body {
+  background: var(--page);
+  min-height: 100%;
+}
+
 #app {
   min-height: 100svh;
+}
+
+/*
+ * Visible focus ring for keyboard users only (mouse/touch clicks stay clean).
+ * :where() keeps specificity at 0 so component styles can still override it.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/*
+ * Horizontal data tables: scroll inside their own container instead of
+ * widening the page. Mobile-first — when the table already fits (desktop)
+ * no scrollbar appears, so wide tables can stay `width: 100%`.
+ */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/*
+ * Visually hidden but still exposed to assistive technology (WCAG 1.3.1).
+ * Used for screen-reader-only text such as table column headers that have no
+ * visible label (axe `empty-table-header`).
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

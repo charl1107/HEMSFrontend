@@ -3,7 +3,8 @@ import { onMounted, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import { useRoute, useRouter } from 'vue-router'
 import { Button } from '@/components/ui'
-import logoUrl from '@/assets/hospitality_logo.svg'
+// F7: single deduped artwork file (identical emblem, also the PWA icon).
+const logoUrl = '/favicon.svg'
 import { useAuthStore } from '../../stores/auth.store'
 import { landingRoute } from '../../router/landing-route'
 
@@ -50,7 +51,7 @@ async function onSubmit() {
           <img :src="logoUrl" alt="HEMS hospitality logo" class="login__logo" />
         </div>
         <div class="login__brand-copy-wrap">
-          <p class="login__mark">Hospitality Management</p>
+          <h1 class="login__mark">Hospitality Management</h1>
           <p class="login__brand-copy">
             Your campus events, activities, and attendance — all in one place.
           </p>
@@ -305,6 +306,17 @@ async function onSubmit() {
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+}
+/* 44px hit area across the reserved 4rem padding of the field — the visible
+   text stays where it is. */
+.login__password-toggle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  transform: translate(-50%, -50%);
 }
 .login__password-toggle:focus-visible { outline: 2px solid #db2777; outline-offset: 2px; border-radius: 4px; }
 

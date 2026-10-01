@@ -3,7 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { EventCard, StatusBadge } from '@/components/ui'
 import { getPublicEvent, resolveCoverSrc, type EventRecord } from '../../api/events.api'
-import { listSchedule, type ScheduleRecord } from '../../api/schedule.api'
+import { type ScheduleRecord } from '../../api/schedule.api'
+import { getPublicSchedule } from '../../api/public-events.api'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,7 +38,7 @@ onMounted(async () => {
   try {
     event.value = await getPublicEvent(id)
     try {
-      schedule.value = await listSchedule(id)
+      schedule.value = await getPublicSchedule(id)
     } catch {
       // Schedule is optional for public viewing
     }

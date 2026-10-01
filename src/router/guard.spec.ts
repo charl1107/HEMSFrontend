@@ -1,9 +1,13 @@
+// @vitest-environment happy-dom
+import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter, type RouteRecordRaw, type Router } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
-import { refresh } from '../api/auth.api'
+import { me, refresh } from '../api/auth.api'
 import { clearAccessToken } from '../api/http'
+import { listMyAttendance } from '../api/attendance.api'
+import StudentDashboardView from '../views/dashboards/StudentDashboardView.vue'
 import { routes } from './routes'
 
 vi.mock('../api/auth.api', () => ({
@@ -12,6 +16,16 @@ vi.mock('../api/auth.api', () => ({
   me: vi.fn(),
   refresh: vi.fn(),
 }))
+
+// StudentDashboardView fetches attendance in onMounted(); without this mock
+// the landing-render test would fire a real GET at VITE_API_BASE_URL.
+vi.mock('../api/attendance.api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/attendance.api')>()
+  return {
+    ...actual,
+    listMyAttendance: vi.fn(),
+  }
+})
 
 const stub = { template: '<div />' }
 
@@ -41,6 +55,7 @@ describe('router guard', () => {
     setActivePinia(createPinia())
     clearAccessToken()
     vi.mocked(refresh).mockReset()
+    vi.mocked(me).mockReset()
   })
 
   it('denies Student on /admin/users and redirects to student-dashboard', async () => {
@@ -59,6 +74,114 @@ describe('router guard', () => {
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('student-dashboard')
     expect(router.currentRoute.value.path).not.toContain('/admin')
+  })
+
+  it('denies Student on /reports, sets a denial flag, and the landing renders the notice', async () => {
+    const auth = useAuthStore()
+    auth.setSession('token', {
+      id: '1',
+      email: 's@x.com',
+      firstName: 'S',
+      lastName: 'T',
+      isActive: true,
+      roles: ['Student'],
+      mustChangePassword: false,
+    })
+    const router = await createTestRouter()
+    await router.push('/reports')
+    await router.isReady()
+
+    // Redirected to the role landing, and the guard recorded the refusal.
+    expect(router.currentRoute.value.name).toBe('student-dashboard')
+    expect(auth.deniedPath).toBe('/reports')
+
+    // The landing itself renders the denial feedback.
+    vi.mocked(listMyAttendance).mockResolvedValue([])
+    const wrapper = mount(StudentDashboardView, { global: { plugins: [router] } })
+    await flushPromises()
+
+    const notice = wrapper.find('[data-testid="access-denied"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text()).toContain("You don't have access to that page.")
+    wrapper.unmount()
+  })
+
+  it('consumes the denial flag after the landing shows it (no stale re-show)', async () => {
+    const auth = useAuthStore()
+    auth.setSession('token', {
+      id: '1',
+      email: 's@x.com',
+      firstName: 'S',
+      lastName: 'T',
+      isActive: true,
+      roles: ['Student'],
+      mustChangePassword: false,
+    })
+    const router = await createTestRouter()
+
+    // Denied → redirected to the landing, flag set, landing renders it.
+    await router.push('/reports')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('student-dashboard')
+    expect(auth.deniedPath).toBe('/reports')
+    vi.mocked(listMyAttendance).mockResolvedValue([])
+    const first = mount(StudentDashboardView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(first.find('[data-testid="access-denied"]').exists()).toBe(true)
+    first.unmount()
+
+    // One-shot: any later successful navigation consumes the flag…
+    await router.push('/my-attendance')
+    await router.isReady()
+    expect(auth.deniedPath).toBeNull()
+
+    // …so returning to the landing does NOT re-show the stale notice.
+    await router.push('/student-dashboard')
+    await router.isReady()
+    const second = mount(StudentDashboardView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(second.find('[data-testid="access-denied"]').exists()).toBe(false)
+    second.unmount()
+  })
+
+  it('clears a stale denial flag when a new session is set (login)', () => {
+    const auth = useAuthStore()
+    auth.deniedPath = '/reports'
+    auth.setSession('token', {
+      id: '1',
+      email: 's@x.com',
+      firstName: 'S',
+      lastName: 'T',
+      isActive: true,
+      roles: ['Student'],
+      mustChangePassword: false,
+    })
+    expect(auth.deniedPath).toBeNull()
+  })
+
+  it('clears a stale denial flag when fetchMe ends without a session', async () => {
+    const auth = useAuthStore()
+    auth.setSession('token', {
+      id: '1',
+      email: 's@x.com',
+      firstName: 'S',
+      lastName: 'T',
+      isActive: true,
+      roles: ['Student'],
+      mustChangePassword: false,
+    })
+
+    // Session loss via a failed /me: catch must drop the flag with the user.
+    auth.deniedPath = '/reports'
+    vi.mocked(me).mockRejectedValueOnce(new Error('boom'))
+    await auth.fetchMe()
+    expect(auth.user).toBeNull()
+    expect(auth.deniedPath).toBeNull()
+
+    // Already token-less: fetchMe's early return must not keep it either.
+    auth.deniedPath = '/reports'
+    await auth.fetchMe()
+    expect(auth.deniedPath).toBeNull()
   })
 
   it('no longer registers the admin dashboard route', () => {

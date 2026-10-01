@@ -90,6 +90,23 @@ onMounted(() => {
       <p class="dashboard__intro">Welcome{{ auth.user ? `, ${formatUserDisplayName(auth.user)}` : '' }}.</p>
     </header>
 
+    <div
+      v-if="auth.deniedPath"
+      class="dashboard__denied"
+      role="alert"
+      data-testid="access-denied"
+    >
+      <span>You don't have access to that page.</span>
+      <button
+        type="button"
+        class="dashboard__denied-dismiss"
+        data-testid="access-denied-dismiss"
+        @click="auth.clearDenied()"
+      >
+        Dismiss
+      </button>
+    </div>
+
     <Card title="Quick actions">
       <div class="dashboard__actions">
         <RouterLink
@@ -236,7 +253,7 @@ onMounted(() => {
 .dashboard__action--secondary:hover { border-color: var(--slate-line); background: var(--page); }
 .dashboard__action:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.2);
 }
 
 .dashboard__summary-grid {
@@ -333,6 +350,31 @@ onMounted(() => {
   color: #dc2626;
   margin: 0;
 }
+.dashboard__denied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-line);
+  color: var(--danger-strong);
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+.dashboard__denied-dismiss {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--danger-line);
+  background: var(--surface);
+  color: var(--danger-strong);
+  cursor: pointer;
+}
+.dashboard__denied-dismiss:hover { filter: brightness(0.97); }
 @media (prefers-reduced-motion: reduce) {
   .dashboard__action:hover { filter: none; }
   .dashboard__action--secondary:hover { background: var(--page); }

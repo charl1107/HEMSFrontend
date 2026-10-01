@@ -252,33 +252,35 @@ onMounted(load)
 
         <section class="event-report__section" data-testid="absentee-list">
           <h3 class="event-report__section-title">Absentees</h3>
-          <table class="event-report__table">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Type</th>
-                <th scope="col">Email</th>
-                <th scope="col">Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in report.absentees"
-                :key="row.participantId"
-                :data-testid="`absentee-${row.participantId}`"
-              >
-                <td>{{ row.name }}</td>
-                <td>{{ row.participantType }}</td>
-                <td>{{ row.email ?? '—' }}</td>
-                <td>{{ row.absenteeReason ?? '—' }}</td>
-              </tr>
-              <tr v-if="!report.absentees.length">
-                <td colspan="4" class="event-report__empty" data-testid="absentees-empty">
-                  No absentees.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-scroll">
+            <table class="event-report__table">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in report.absentees"
+                  :key="row.participantId"
+                  :data-testid="`absentee-${row.participantId}`"
+                >
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.participantType }}</td>
+                  <td>{{ row.email ?? '—' }}</td>
+                  <td>{{ row.absenteeReason ?? '—' }}</td>
+                </tr>
+                <tr v-if="!report.absentees.length">
+                  <td colspan="4" class="event-report__empty" data-testid="absentees-empty">
+                    No absentees.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <p class="event-report__definition" data-testid="absentee-definition">
@@ -350,7 +352,7 @@ onMounted(load)
 }
 .event-report__stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.25rem;
 }

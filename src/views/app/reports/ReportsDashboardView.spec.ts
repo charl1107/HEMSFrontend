@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ReportsDashboardView from './ReportsDashboardView.vue'
 import { getSummary, type SummaryReport } from '../../../api/reports.api'
+import { expectSequentialHeadings } from '../../../test-utils/headings'
 
 vi.mock('../../../api/reports.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/reports.api')>()
@@ -109,5 +110,25 @@ describe('ReportsDashboardView', () => {
     const wrapper = await mountDashboard()
 
     expect(wrapper.find('[data-testid="reports-error"]').text()).toContain('boom')
+  })
+
+  it('renders headings in sequential order (axe heading-order)', async () => {
+    const wrapper = await mountDashboard()
+
+    expect(wrapper.find('[data-testid="reports-dashboard"]').exists()).toBe(true)
+    expectSequentialHeadings(wrapper)
+  })
+
+  // The Attendance-by-event table's 8th column header (`th:nth-child(8)`)
+  // links to the per-event report and rendered empty — axe empty-table-header.
+  it('gives the 8th column header screen-reader text (axe empty-table-header)', async () => {
+    const wrapper = await mountDashboard()
+
+    const headers = wrapper
+      .find('[data-testid="reports-attendance-by-event"] thead')
+      .findAll('th')
+    expect(headers).toHaveLength(8)
+    expect(headers[7].text().trim(), '8th column header must not be empty').not.toBe('')
+    expect(headers[7].text()).toContain('Report')
   })
 })

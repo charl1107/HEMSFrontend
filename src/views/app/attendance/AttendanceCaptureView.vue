@@ -45,6 +45,10 @@ const error = ref<string | null>(null)
 const notice = ref<string | null>(null)
 const rosterSearch = ref('')
 const statusFilter = ref<'All' | 'Pending Time-In' | 'Present'>('All')
+/** Set when the gate refuses a time-in with HTTP 409 (stale local roster). */
+const blockedIds = ref<Record<string, boolean>>({})
+/** True once the roster has been fetched at least once successfully. */
+const loaded = ref(false)
 
 const attendanceByParticipant = computed(() => {
   const map = new Map<string, AttendanceRecord>()
@@ -57,6 +61,7 @@ interface RosterRow {
   record: AttendanceRecord | null
   canTimeIn: boolean
   canTimeOut: boolean
+  blocked: boolean
 }
 
 const rows = computed<RosterRow[]>(() =>
@@ -67,6 +72,7 @@ const rows = computed<RosterRow[]>(() =>
       record,
       canTimeIn: record === null || record.timeIn === null,
       canTimeOut: record !== null && record.timeIn !== null && record.timeOut === null,
+      blocked: blockedIds.value[participant.id] === true,
     }
   }),
 )
@@ -96,6 +102,17 @@ function isNetworkError(err: unknown): boolean {
   return isAxiosError(err) && !err.response
 }
 
+/**
+ * Clears the view-local error/notice and any gate blocks. Called whenever the
+ * operator starts a new action, retries, or refetches — a blocked (409-gated)
+ * Time in button re-enables once its local error clears (U10).
+ */
+function clearLocalFeedback(): void {
+  error.value = null
+  notice.value = null
+  blockedIds.value = {}
+}
+
 function displayTime(value: string | null): string {
   if (!value) return '—'
   const date = new Date(value)
@@ -123,8 +140,7 @@ async function recordLocal(
   participant: ParticipantRecord,
   kind: 'time-in' | 'time-out',
 ): Promise<void> {
-  error.value = null
-  notice.value = null
+  clearLocalFeedback()
   const now = new Date().toISOString()
   const clientRecordId = newClientRecordId()
   const existing = attendanceByParticipant.value.get(participant.id)
@@ -145,6 +161,14 @@ async function recordLocal(
       return
     } catch (err) {
       if (!isNetworkError(err)) {
+        // Gate refusal (HTTP 409): the local roster is stale — kill this
+        // participant's Time in button until the error clears (U10).
+        // Detected by status only; Task 16 lets server message text vary.
+        // Only a time-in refusal can mean "this Time in is dead" — a time-out
+        // 409 already implies an existing time-in, so it never blocks here.
+        if (kind === 'time-in' && isAxiosError(err) && err.response?.status === 409) {
+          blockedIds.value = { ...blockedIds.value, [participant.id]: true }
+        }
         error.value = apiErrorMessage(err, 'Failed to record attendance')
         return
       }
@@ -198,8 +222,7 @@ async function onSyncNow(): Promise<void> {
     return
   }
   flushing.value = true
-  error.value = null
-  notice.value = null
+  clearLocalFeedback()
   try {
     // Snapshot names before flush clears pending state.
     const beforeFlush = await listPendingRecords()
@@ -263,6 +286,7 @@ async function refreshRosterFromServer(): Promise<void> {
   participants.value = roster
   attendance.value = existingAttendance
   fromCache.value = false
+  loaded.value = true
   await saveRosterSnapshot({
     eventId: eventId.value,
     participants: roster,
@@ -280,6 +304,7 @@ async function loadFromCache(fallbackNotice: string): Promise<void> {
   participants.value = snapshot.participants
   attendance.value = snapshot.attendance
   fromCache.value = true
+  loaded.value = true
   notice.value = fallbackNotice
   try {
     event.value = await getEvent(eventId.value)
@@ -290,9 +315,9 @@ async function loadFromCache(fallbackNotice: string): Promise<void> {
 
 async function load(): Promise<void> {
   loading.value = true
-  error.value = null
-  notice.value = null
+  clearLocalFeedback()
   fromCache.value = false
+  loaded.value = false
   try {
     if (online.value) {
       try {
@@ -347,8 +372,10 @@ onMounted(load)
     </p>
 
     <p v-if="loading">Loading…</p>
+    <!-- Initial-load failure: the roster never arrived, so it stays hidden.
+         `error` guards the branch so first paint never shows an empty alert. -->
     <p
-      v-else-if="error"
+      v-else-if="!loaded && error"
       class="capture__error"
       role="alert"
       data-testid="capture-error"
@@ -357,6 +384,16 @@ onMounted(load)
     </p>
 
     <template v-else>
+      <!-- Action errors (e.g. a 409 gate refusal) keep the roster on screen so
+           the refused participant's Time in button can be visibly disabled. -->
+      <p
+        v-if="error"
+        class="capture__error"
+        role="alert"
+        data-testid="capture-error"
+      >
+        {{ error }}
+      </p>
       <p
         v-if="notice"
         class="capture__notice"
@@ -450,7 +487,7 @@ onMounted(load)
                 label="Time in"
                 severity="secondary"
                 :data-testid="`time-in-${row.participant.id}`"
-                :disabled="!row.canTimeIn"
+                :disabled="!row.canTimeIn || row.blocked"
                 @click="recordLocal(row.participant, 'time-in')"
               />
               <Button
@@ -587,6 +624,16 @@ onMounted(load)
   background: linear-gradient(135deg, var(--brand-strong-btn) 0%, var(--brand-btn) 100%);
   color: #fff;
   border-color: transparent;
+}
+
+@media (max-width: 767px) {
+  /* pills stay as wide as their label but get a 44px target on phones */
+  .capture__tab {
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    padding-inline: 1rem;
+  }
 }
 .capture__no-matches {
   margin: 1rem 0;

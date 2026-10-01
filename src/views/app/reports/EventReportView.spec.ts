@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +14,7 @@ import {
   type EventReport,
   type ReportDownload,
 } from '../../../api/reports.api'
+import { expectSequentialHeadings } from '../../../test-utils/headings'
 
 vi.mock('../../../api/reports.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/reports.api')>()
@@ -193,5 +196,46 @@ describe('EventReportView', () => {
     expect(wrapper.find('[data-testid="event-report-error"]').text()).toContain(
       'load boom',
     )
+  })
+
+  it('lays the six stat cards out in one grid band via the stats grid rule', async () => {
+    const wrapper = await mountReport()
+
+    // Container class exists and all six stat cards render inside it.
+    const stats = wrapper.find('[data-testid="event-stats"]')
+    expect(stats.classes()).toContain('event-report__stats')
+    expect(wrapper.findAll('.event-report__stat')).toHaveLength(6)
+
+    // Component tests cannot measure computed layout reliably, so assert the
+    // 6-up grid rule in the component's own style block (read from the SFC).
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/views/app/reports/EventReportView.vue'),
+      'utf8',
+    )
+    const statsRule = source.match(/\.event-report__stats\s*\{[^}]*\}/)
+    expect(statsRule).not.toBeNull()
+    expect(statsRule?.[0]).toContain(
+      'grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))',
+    )
+  })
+
+  it('renders headings in sequential order (axe heading-order)', async () => {
+    const wrapper = await mountReport()
+
+    expect(wrapper.find('[data-testid="event-title"]').exists()).toBe(true)
+    expectSequentialHeadings(wrapper)
+  })
+
+  it('gives every table header non-empty text (axe empty-table-header)', async () => {
+    const wrapper = await mountReport()
+
+    const headers = wrapper.findAll('th')
+    expect(headers.length).toBeGreaterThan(0)
+    for (const header of headers) {
+      expect(
+        header.text().trim(),
+        `empty <th>: ${header.html()}`,
+      ).not.toBe('')
+    }
   })
 })

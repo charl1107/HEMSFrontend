@@ -17,7 +17,7 @@ export default defineConfig({
         short_name: 'HM Portal',
         description:
           'Offline-capable attendance capture for hospitality events.',
-        theme_color: '#2563eb',
+        theme_color: '#be185d',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/welcome',

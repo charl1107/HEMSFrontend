@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, ConfirmDialog } from '@/components/ui'
 import {
   addCommitteeMember,
   committeeMemberName,
@@ -136,6 +136,29 @@ async function onRemoveMember(
   }
 }
 
+const pendingMember = ref<{
+  committee: CommitteeRecord
+  member: CommitteeMemberRecord
+} | null>(null)
+
+function openDialog(
+  committee: CommitteeRecord,
+  member: CommitteeMemberRecord,
+): void {
+  pendingMember.value = { committee, member }
+}
+
+function cancelDialog(): void {
+  pendingMember.value = null
+}
+
+async function confirmDialog(): Promise<void> {
+  const pending = pendingMember.value
+  pendingMember.value = null
+  if (!pending) return
+  await onRemoveMember(pending.committee, pending.member)
+}
+
 onMounted(load)
 </script>
 
@@ -207,7 +230,7 @@ onMounted(load)
           class="roster__committee"
           :data-testid="`committee-${committee.id}`"
         >
-          <h4 class="roster__committee-title">{{ committee.name }}</h4>
+          <h3 class="roster__committee-title">{{ committee.name }}</h3>
           <p v-if="committee.description" class="roster__committee-desc">
             {{ committee.description }}
           </p>
@@ -227,7 +250,7 @@ onMounted(load)
                 severity="secondary"
                 :data-testid="`member-remove-${committee.id}-${member.userId}`"
                 :disabled="busy"
-                @click="onRemoveMember(committee, member)"
+                @click="openDialog(committee, member)"
               />
             </li>
             <li
@@ -285,6 +308,17 @@ onMounted(load)
         >
           No committees yet.
         </p>
+
+        <ConfirmDialog
+          :open="pendingMember !== null"
+          title="Remove committee member"
+          message="Remove this member from the committee? This cannot be undone."
+          confirm-label="Remove"
+          cancel-label="Cancel"
+          destructive
+          @confirm="confirmDialog"
+          @cancel="cancelDialog"
+        />
       </template>
     </template>
   </Card>
@@ -325,7 +359,15 @@ onMounted(load)
   gap: 0.3rem;
 }
 .roster__field--inline {
-  flex: 1;
+  /* 12rem basis + shrink: the row stays side-by-side while the select gives
+     way on narrow screens instead of pushing the page sideways. */
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.roster__field--inline select,
+.roster__field--inline input {
+  width: 100%;
+  min-width: 0;
 }
 .roster__field input,
 .roster__field select {
@@ -377,6 +419,7 @@ onMounted(load)
 }
 .roster__add-member {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: flex-end;
 }

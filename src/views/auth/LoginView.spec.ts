@@ -39,6 +39,9 @@ describe('LoginView', () => {
       routes: [
         { path: '/login', name: 'login', component: LoginView },
         { path: '/dashboard', name: 'dashboard', component: { template: '<div />' } },
+        // LoginView renders a brand CTA linking to the 'sign-in' route
+        // (registered in routes.ts) — the test router must resolve it too.
+        { path: '/sign-in', name: 'sign-in', component: LoginView },
       ],
     })
     await router.push('/login')
@@ -57,12 +60,54 @@ describe('LoginView', () => {
     expect(router.currentRoute.value.name).toBe('dashboard')
   })
 
+  it('renders a top-level <h1> for the sign-in form (axe page-has-heading-one)', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/login', name: 'login', component: LoginView },
+        { path: '/sign-in', name: 'sign-in', component: LoginView },
+      ],
+    })
+    await router.push('/login')
+    await router.isReady()
+
+    const wrapper = mount(LoginView, { global: { plugins: [router] } })
+
+    const headings = wrapper.findAll('h1')
+    expect(headings.length).toBeGreaterThan(0)
+    expect(headings.some((h) => h.text().includes('Sign in'))).toBe(true)
+  })
+
+  // On `/login` (the landing route) below 900px the form panel is
+  // display:none, so the brand panel is the whole visible page — axe found no
+  // h1 at all there (TESTING.md §8.6). The brand panel needs its own h1.
+  it('renders an <h1> in the brand landing panel (axe page-has-heading-one)', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/login', name: 'login', component: LoginView },
+        { path: '/sign-in', name: 'sign-in', component: LoginView },
+      ],
+    })
+    await router.push('/login')
+    await router.isReady()
+
+    const wrapper = mount(LoginView, { global: { plugins: [router] } })
+
+    const brandH1 = wrapper.find('.login__brand h1')
+    expect(brandH1.exists()).toBe(true)
+    expect(brandH1.text()).toContain('Hospitality Management')
+  })
+
   it('shows an error when login fails', async () => {
     vi.mocked(apiLogin).mockRejectedValue(new Error('Invalid credentials'))
 
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/login', name: 'login', component: LoginView }],
+      routes: [
+        { path: '/login', name: 'login', component: LoginView },
+        { path: '/sign-in', name: 'sign-in', component: LoginView },
+      ],
     })
     await router.push('/login')
     await router.isReady()

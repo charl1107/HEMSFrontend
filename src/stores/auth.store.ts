@@ -9,6 +9,14 @@ import { landingRoute } from '../router/landing-route'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<SafeUser | null>(null)
   const ready = ref(false)
+  /**
+   * Path the guard last refused for this session (e.g. `/reports`).
+   * The landing view renders it as access-denied feedback. One-shot: the
+   * guard consumes it on the next navigation that is not the denial's own
+   * landing redirect; it is also cleared on dismiss, when a session is set
+   * (login/restore), and on any session loss — never leaks across users.
+   */
+  const deniedPath = ref<string | null>(null)
   let restorePromise: Promise<void> | null = null
 
   const roles = computed(() => user.value?.roles ?? [])
@@ -20,6 +28,9 @@ export const useAuthStore = defineStore('auth', () => {
       setStoredRefreshToken(refreshToken)
     }
     user.value = nextUser
+    // A freshly (re)established session never attempted a denial — drop any
+    // stale flag so it cannot leak into this session from a previous one.
+    deniedPath.value = null
     ready.value = true
   }
 
@@ -38,12 +49,19 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       clearAccessToken()
       user.value = null
+      deniedPath.value = null
     }
+  }
+
+  function clearDenied(): void {
+    deniedPath.value = null
   }
 
   async function fetchMe(): Promise<void> {
     if (!getAccessToken()) {
       user.value = null
+      // Session is gone — the denial flag must not outlive it.
+      deniedPath.value = null
       return
     }
     try {
@@ -51,6 +69,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       clearAccessToken()
       user.value = null
+      deniedPath.value = null
     }
   }
 
@@ -91,6 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
   function handleUnauthorized(): void {
     clearAccessToken()
     user.value = null
+    deniedPath.value = null
   }
 
   onUnauthorized(handleUnauthorized)
@@ -100,9 +120,11 @@ export const useAuthStore = defineStore('auth', () => {
     roles,
     isAuthenticated,
     ready,
+    deniedPath,
     setSession,
     login,
     logout,
+    clearDenied,
     fetchMe,
     restoreSession,
     ensureRestored,

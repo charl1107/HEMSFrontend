@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EventDetailView from './EventDetailView.vue'
-import { getEvent, type EventRecord } from '../../../api/events.api'
+import { advanceEvent, getEvent, type EventRecord } from '../../../api/events.api'
 import {
   getApprovalHistory,
   submitForApproval,
@@ -15,14 +15,19 @@ import { listParticipants } from '../../../api/participants.api'
 import { listCommittees, type CommitteeRecord } from '../../../api/committees.api'
 import { listTasks } from '../../../api/tasks.api'
 import { listSchedule } from '../../../api/schedule.api'
-import { listDocuments } from '../../../api/documents.api'
+import {
+  listDocuments,
+  type DocumentRecord,
+} from '../../../api/documents.api'
 import { tryListUsers } from '../../../api/users.api'
+import { expectSequentialHeadings } from '../../../test-utils/headings'
 
 vi.mock('../../../api/events.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/events.api')>()
   return {
     ...actual,
     getEvent: vi.fn(),
+    advanceEvent: vi.fn(),
   }
 })
 
@@ -154,6 +159,30 @@ function makeCommittee(
         email: `${userId}@x.com`,
       },
     })),
+    ...overrides,
+  }
+}
+
+function makeDocument(
+  overrides: Partial<DocumentRecord> = {},
+): DocumentRecord {
+  return {
+    id: 'd1',
+    eventId: 'e1',
+    uploadedById: 'u1',
+    docType: 'Proposal',
+    filePath: 'events/e1/proposal.pdf',
+    originalFilename: 'proposal.pdf',
+    mimeType: 'application/pdf',
+    fileSize: 2048,
+    createdAt: '2026-01-03T00:00:00.000Z',
+    updatedAt: '2026-01-03T00:00:00.000Z',
+    uploadedBy: {
+      id: 'u1',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@x.com',
+    },
     ...overrides,
   }
 }
@@ -424,5 +453,83 @@ describe('EventDetailView', () => {
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(true)
+  })
+
+  it('shows Mark ongoing for the owner on a Planning event', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Planning' }))
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(false)
+  })
+
+  it('hides Mark ongoing when the event is Approved', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Approved' }))
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(false)
+  })
+
+  it('hides Mark ongoing for a non-owner even while Planning', async () => {
+    setSession(['Event Coordinator'], 'someone-else')
+    vi.mocked(getEvent).mockResolvedValue(
+      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
+    )
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
+  })
+
+  it('shows Mark completed for the owner while the event is Ongoing', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Ongoing' }))
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
+  })
+
+  it('advances Planning→Ongoing through the confirm dialog via advanceEvent', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Planning' }))
+    vi.mocked(advanceEvent).mockResolvedValue(makeEvent({ status: 'Ongoing' }))
+
+    const wrapper = await mountDetail(router)
+    await wrapper.find('[data-testid="mark-ongoing"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="confirm-dialog"]').exists()).toBe(true)
+    expect(advanceEvent).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(advanceEvent).toHaveBeenCalledWith('e1', 'Ongoing')
+    expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="event-detail-notice"]').text()).toContain(
+      'ongoing',
+    )
+  })
+
+  // Task 21 follow-up: promoting Card titles h3->h2 exposed the h4 group
+  // titles inside CommitteesSection/DocumentsSection as an h2->h4 skip
+  // (axe heading-order) whenever committee/document data renders.
+  it('keeps the outline sequential when committee and document data render (axe heading-order)', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(
+      makeEvent({ status: 'Approved', createdById: 'u1' }),
+    )
+    vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['u1'])])
+    vi.mocked(listDocuments).mockResolvedValue([makeDocument()])
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="committee-c1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="documents-group-Proposal"]').exists()).toBe(
+      true,
+    )
+    expectSequentialHeadings(wrapper)
   })
 })

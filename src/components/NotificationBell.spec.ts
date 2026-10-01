@@ -8,7 +8,7 @@ import {
   it,
   vi,
 } from 'vitest'
-import { reactive } from 'vue'
+import { nextTick, reactive } from 'vue'
 import NotificationBell from './NotificationBell.vue'
 import {
   listNotifications,
@@ -50,8 +50,8 @@ function makeNotification(
 
 let wrapper: VueWrapper | null = null
 
-function mountBell(): VueWrapper {
-  wrapper = mount(NotificationBell)
+function mountBell(options: { attachTo?: Element } = {}): VueWrapper {
+  wrapper = mount(NotificationBell, options)
   return wrapper
 }
 
@@ -149,5 +149,65 @@ describe('NotificationBell', () => {
     expect(wrapper.get('[data-testid="notification-empty"]').text()).toContain(
       'No notifications',
     )
+  })
+
+  it('closes the popover when clicking outside of it', async () => {
+    const wrapper = mountBell()
+    await flushPromises()
+
+    const trigger = wrapper.get('[data-testid="notification-bell"]')
+    await trigger.trigger('click')
+    expect(wrapper.find('[data-testid="notification-panel"]').exists()).toBe(
+      true,
+    )
+
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    outside.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+    expect(wrapper.find('[data-testid="notification-panel"]').exists()).toBe(
+      false,
+    )
+
+    // Clicking the trigger while closed reopens it (no close/reopen loop),
+    // and clicking it while open closes it exactly once.
+    await trigger.trigger('click')
+    expect(wrapper.find('[data-testid="notification-panel"]').exists()).toBe(
+      true,
+    )
+    await trigger.trigger('click')
+    expect(wrapper.find('[data-testid="notification-panel"]').exists()).toBe(
+      false,
+    )
+
+    outside.remove()
+  })
+
+  it('closes on Escape and returns focus to the trigger button', async () => {
+    // attachTo keeps the trigger inside `document` so focus() is observable.
+    const wrapper = mountBell({ attachTo: document.body })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="notification-bell"]').trigger('click')
+    const panel = wrapper.get('[data-testid="notification-panel"]')
+
+    const away = document.createElement('input')
+    document.body.appendChild(away)
+    away.focus()
+    expect(document.activeElement).toBe(away)
+
+    panel.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    )
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="notification-panel"]').exists()).toBe(
+      false,
+    )
+    expect(document.activeElement).toBe(
+      wrapper.get('[data-testid="notification-bell"]').element,
+    )
+
+    away.remove()
   })
 })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Button, Card } from '@/components/ui'
+import { Button, Card, ConfirmDialog } from '@/components/ui'
 import { apiErrorMessage } from '../../../api/http'
 import { isPlanningAllowedStatus } from '../../../api/events.api'
 import {
@@ -125,6 +125,23 @@ async function onDelete(doc: DocumentRecord): Promise<void> {
   }
 }
 
+const pendingDelete = ref<DocumentRecord | null>(null)
+
+function openDialog(doc: DocumentRecord): void {
+  pendingDelete.value = doc
+}
+
+function cancelDialog(): void {
+  pendingDelete.value = null
+}
+
+async function confirmDialog(): Promise<void> {
+  const doc = pendingDelete.value
+  pendingDelete.value = null
+  if (!doc) return
+  await onDelete(doc)
+}
+
 onMounted(load)
 </script>
 
@@ -203,7 +220,7 @@ onMounted(load)
           class="docs__group"
           :data-testid="`documents-group-${group.docType}`"
         >
-          <h4 class="docs__group-title">{{ group.docType }}</h4>
+          <h3 class="docs__group-title">{{ group.docType }}</h3>
           <ul class="docs__list">
             <li
               v-for="doc in group.documents"
@@ -237,7 +254,7 @@ onMounted(load)
                   severity="danger"
                   :data-testid="`document-delete-${doc.id}`"
                   :disabled="busy"
-                  @click="onDelete(doc)"
+                  @click="openDialog(doc)"
                 />
               </span>
             </li>
@@ -247,6 +264,17 @@ onMounted(load)
       <p v-else class="docs__empty" data-testid="documents-empty">
         No documents yet.
       </p>
+
+      <ConfirmDialog
+        :open="pendingDelete !== null"
+        title="Delete document"
+        message="Delete this document? This cannot be undone."
+        confirm-label="Delete"
+        cancel-label="Cancel"
+        destructive
+        @confirm="confirmDialog"
+        @cancel="cancelDialog"
+      />
     </template>
   </Card>
 </template>

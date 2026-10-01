@@ -173,6 +173,17 @@ export async function deleteEvent(id: string): Promise<void> {
   await http.delete(`/events/${id}`)
 }
 
+/** Lifecycle targets accepted by `POST /events/:id/advance` (F17). */
+export type EventAdvanceTarget = 'Ongoing' | 'Completed'
+
+export async function advanceEvent(
+  id: string,
+  to: EventAdvanceTarget,
+): Promise<EventRecord> {
+  const { data } = await http.post<EventRecord>(`/events/${id}/advance`, { to })
+  return data
+}
+
 export async function uploadCover(id: string, file: File): Promise<EventRecord> {
   const form = new FormData()
   form.append('file', file)

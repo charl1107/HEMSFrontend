@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import logoUrl from '@/assets/hospitality_logo.svg'
+// F7: single deduped artwork file (identical emblem, also the PWA icon).
+const logoUrl = '/favicon.svg'
 </script>
 
 <template>

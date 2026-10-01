@@ -208,7 +208,7 @@ async function onSubmit() {
 
 .change-password__input:focus {
   border-color: var(--accent-line);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 3px rgba(190, 24, 93, 0.2);
 }
 
 .change-password__visibility {
@@ -220,6 +220,16 @@ async function onSubmit() {
   font: inherit;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  /* inline text control -> full touch target so it is not a 17px strip */
+  .change-password__visibility {
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    padding-inline: 0.25rem;
+  }
 }
 
 .change-password__field-error {

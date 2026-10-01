@@ -52,7 +52,7 @@ function currentCover(): string | undefined {
         <StatusBadge v-if="status" :status="status" />
         <time v-if="eventDate" :datetime="eventDate">{{ formatDate(eventDate) }}</time>
       </div>
-      <h3 class="ui-event-card__title">{{ title }}</h3>
+      <h2 class="ui-event-card__title">{{ title }}</h2>
       <p v-if="description" class="ui-event-card__description">{{ description }}</p>
       <p v-if="venue" class="ui-event-card__venue">
         {{ venue }}<span v-if="campusScope"> · {{ campusScope === 'OnCampus' ? 'Inside campus' : 'Outside campus' }}</span>
@@ -91,7 +91,7 @@ function currentCover(): string | undefined {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gray-400);
+  color: var(--muted);
   font-size: 0.9rem;
   background: repeating-linear-gradient(
     45deg,

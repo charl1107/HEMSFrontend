@@ -255,108 +255,110 @@ onMounted(load)
           />
         </form>
 
-        <table
-          v-if="tasks.length"
-          class="tasks__table"
-          data-testid="tasks-table"
-        >
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>Assignee</th>
-              <th>Deadline</th>
-              <th>Status</th>
-              <th v-if="showForm">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="task in tasks"
-              :key="task.id"
-              :data-testid="`task-row-${task.id}`"
-            >
-              <td class="tasks__cell">
-                <span class="tasks__title">{{ task.title }}</span>
-                <span v-if="task.description" class="tasks__desc">
-                  {{ task.description }}
-                </span>
-              </td>
-              <td>
-                <template v-if="showForm">
-                  <select
-                    v-if="hasPicker"
-                    :value="task.assignedToUserId ?? ''"
-                    :data-testid="`task-assign-${task.id}`"
-                    :disabled="busy"
-                    @change="onAssignChange(task, $event)"
-                  >
-                    <option value="">Unassigned</option>
-                    <option
-                      v-for="user in pickerUsers"
-                      :key="user.id"
-                      :value="user.id"
+        <div class="table-scroll">
+          <table
+            v-if="tasks.length"
+            class="tasks__table"
+            data-testid="tasks-table"
+          >
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Assignee</th>
+                <th>Deadline</th>
+                <th>Status</th>
+                <th v-if="showForm">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="task in tasks"
+                :key="task.id"
+                :data-testid="`task-row-${task.id}`"
+              >
+                <td class="tasks__cell">
+                  <span class="tasks__title">{{ task.title }}</span>
+                  <span v-if="task.description" class="tasks__desc">
+                    {{ task.description }}
+                  </span>
+                </td>
+                <td>
+                  <template v-if="showForm">
+                    <select
+                      v-if="hasPicker"
+                      :value="task.assignedToUserId ?? ''"
+                      :data-testid="`task-assign-${task.id}`"
+                      :disabled="busy"
+                      @change="onAssignChange(task, $event)"
                     >
-                      {{ user.firstName }} {{ user.lastName }}
+                      <option value="">Unassigned</option>
+                      <option
+                        v-for="user in pickerUsers"
+                        :key="user.id"
+                        :value="user.id"
+                      >
+                        {{ user.firstName }} {{ user.lastName }}
+                      </option>
+                    </select>
+                    <input
+                      v-else
+                      type="text"
+                      :value="task.assignedToUserId ?? ''"
+                      :data-testid="`task-assign-${task.id}`"
+                      :disabled="busy"
+                      placeholder="User ID"
+                      @change="onAssignChange(task, $event)"
+                    />
+                  </template>
+                  <template v-else>
+                    {{
+                      task.assignedToUser
+                        ? `${task.assignedToUser.firstName} ${task.assignedToUser.lastName}`
+                        : 'Unassigned'
+                    }}
+                  </template>
+                </td>
+                <td>
+                  <input
+                    v-if="showForm"
+                    type="date"
+                    :value="task.deadline.slice(0, 10)"
+                    :data-testid="`task-deadline-${task.id}`"
+                    :disabled="busy"
+                    @change="onDeadlineChange(task, $event)"
+                  />
+                  <template v-else>{{ task.deadline.slice(0, 10) }}</template>
+                </td>
+                <td>
+                  <select
+                    v-if="showForm"
+                    :value="task.status"
+                    :data-testid="`task-status-${task.id}`"
+                    :disabled="busy"
+                    @change="onStatusChange(task, $event)"
+                  >
+                    <option v-for="option in TASK_STATUSES" :key="option" :value="option">
+                      {{ option }}
                     </option>
                   </select>
-                  <input
-                    v-else
-                    type="text"
-                    :value="task.assignedToUserId ?? ''"
-                    :data-testid="`task-assign-${task.id}`"
+                  <template v-else>{{ task.status }}</template>
+                </td>
+                <td v-if="showForm">
+                  <Button
+                    label="Delete"
+                    severity="danger"
+                    :data-testid="`task-delete-${task.id}`"
                     :disabled="busy"
-                    placeholder="User ID"
-                    @change="onAssignChange(task, $event)"
+                    @click="onDelete(task)"
                   />
-                </template>
-                <template v-else>
-                  {{
-                    task.assignedToUser
-                      ? `${task.assignedToUser.firstName} ${task.assignedToUser.lastName}`
-                      : 'Unassigned'
-                  }}
-                </template>
-              </td>
-              <td>
-                <input
-                  v-if="showForm"
-                  type="date"
-                  :value="task.deadline.slice(0, 10)"
-                  :data-testid="`task-deadline-${task.id}`"
-                  :disabled="busy"
-                  @change="onDeadlineChange(task, $event)"
-                />
-                <template v-else>{{ task.deadline.slice(0, 10) }}</template>
-              </td>
-              <td>
-                <select
-                  v-if="showForm"
-                  :value="task.status"
-                  :data-testid="`task-status-${task.id}`"
-                  :disabled="busy"
-                  @change="onStatusChange(task, $event)"
-                >
-                  <option v-for="option in TASK_STATUSES" :key="option" :value="option">
-                    {{ option }}
-                  </option>
-                </select>
-                <template v-else>{{ task.status }}</template>
-              </td>
-              <td v-if="showForm">
-                <Button
-                  label="Delete"
-                  severity="danger"
-                  :data-testid="`task-delete-${task.id}`"
-                  :disabled="busy"
-                  @click="onDelete(task)"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="tasks__empty" data-testid="tasks-empty">
-          No tasks yet.
-        </p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-else class="tasks__empty" data-testid="tasks-empty">
+            No tasks yet.
+          </p>
+        </div>
       </template>
     </template>
   </Card>

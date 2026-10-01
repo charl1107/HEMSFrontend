@@ -5,10 +5,16 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import StaffDashboardView from './StaffDashboardView.vue'
 import { useAuthStore } from '../../stores/auth.store'
+import { expectSequentialHeadings } from '../../test-utils/headings'
 
 vi.mock('../../api/events.api', () => ({
   listEvents: vi.fn(),
   ATTENDANCE_SUPERVISOR_ROLES: ['Department Head', 'Event Coordinator', 'Instructor', 'Admin'],
+  // StaffDashboardView calls this for every ongoing-event cover; a factory that
+  // omits it makes the render throw and the row never mount.
+  resolveCoverSrc: vi.fn(
+    (coverImageUrl: string | null | undefined) => coverImageUrl ?? null,
+  ),
 }))
 
 import { listEvents } from '../../api/events.api'
@@ -65,6 +71,18 @@ describe('StaffDashboardView', () => {
     })
     expect(wrapper.find('[data-testid="ongoing-events"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="view-events"]').exists()).toBe(true)
+  })
+
+  it('renders headings in sequential order with events on screen (axe heading-order)', async () => {
+    vi.mocked(listEvents).mockResolvedValue({
+      items: [{ id: 'e1', title: 'Fair', status: 'Ongoing' } as never],
+      total: 1,
+    })
+    const wrapper = await mountView()
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="start-attendance-e1"]').exists()).toBe(true)
+    })
+    expectSequentialHeadings(wrapper)
   })
 
   it('offers no Add event shortcut even for submit roles', async () => {

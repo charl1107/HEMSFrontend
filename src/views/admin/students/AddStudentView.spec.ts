@@ -78,7 +78,9 @@ describe('AddStudentView', () => {
     expect(wrapper.find('[data-testid="error-studentId"]').text()).toContain('required')
     expect(wrapper.find('[data-testid="error-firstName"]').text()).toContain('required')
     expect(wrapper.find('[data-testid="error-email"]').text()).toContain('required')
-    expect(wrapper.find('[data-testid="error-password"]').text()).toContain('required')
+    // Password is optional: an empty one falls back to DEFAULT_STUDENT_PASSWORD
+    // (see student-form.ts), so an empty submit must not demand it.
+    expect(wrapper.find('[data-testid="error-password"]').exists()).toBe(false)
     expect(router.currentRoute.value.name).toBe('admin-student-new')
   })
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, Card, EventCard, Timeline } from '@/components/ui'
+import { Button, Card, ConfirmDialog, EventCard, Timeline } from '@/components/ui'
 import {
+  advanceEvent,
   EDITABLE_EVENT_STATUSES,
   getEvent,
   isEditableStatus,
@@ -11,6 +12,7 @@ import {
   REVIEW_EVENT_ROLES,
   ROSTER_MANAGER_ROLES,
   SUBMIT_EVENT_ROLES,
+  type EventAdvanceTarget,
   type EventRecord,
 } from '../../../api/events.api'
 import {
@@ -83,6 +85,28 @@ const canManageCommittees = computed(
 
 const canManagePlanning = computed(
   () => isOwner.value || isCommitteeMember.value || isCommitteeManagerRole.value,
+)
+
+/** Lifecycle advance (POST /events/:id/advance) — owner-only in this view. */
+const canAdvanceToOngoing = computed(
+  () => isOwner.value && event.value?.status === 'Planning',
+)
+
+const canAdvanceToCompleted = computed(
+  () => isOwner.value && event.value?.status === 'Ongoing',
+)
+
+const advancing = ref(false)
+const pendingAdvance = ref<EventAdvanceTarget | null>(null)
+
+const pendingAdvanceTitle = computed(() =>
+  pendingAdvance.value === 'Completed' ? 'Mark completed' : 'Mark ongoing',
+)
+
+const pendingAdvanceMessage = computed(() =>
+  pendingAdvance.value === 'Completed'
+    ? 'Mark this event as completed? Attendance capture closes for this event.'
+    : 'Mark this event as ongoing? Attendance capture opens for supervisors.',
 )
 
 const historyItems = computed(() =>
@@ -161,6 +185,26 @@ async function onSubmitForApproval(): Promise<void> {
   }
 }
 
+async function onAdvanceConfirm(): Promise<void> {
+  const to = pendingAdvance.value
+  if (!to || !event.value) return
+  advancing.value = true
+  error.value = null
+  notice.value = null
+  try {
+    event.value = await advanceEvent(event.value.id, to)
+    notice.value =
+      to === 'Ongoing'
+        ? 'Event marked ongoing. Supervisors can now capture attendance.'
+        : 'Event marked completed.'
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to advance event'
+  } finally {
+    advancing.value = false
+    pendingAdvance.value = null
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -226,6 +270,20 @@ onMounted(load)
             :disabled="submitting"
             @click="onSubmitForApproval"
           />
+          <Button
+            v-if="canAdvanceToOngoing"
+            label="Mark ongoing"
+            data-testid="mark-ongoing"
+            :disabled="advancing"
+            @click="pendingAdvance = 'Ongoing'"
+          />
+          <Button
+            v-if="canAdvanceToCompleted"
+            label="Mark completed"
+            data-testid="mark-completed"
+            :disabled="advancing"
+            @click="pendingAdvance = 'Completed'"
+          />
           <RouterLink
             v-if="canEdit"
             :to="{ name: 'event-edit', params: { id: event.id } }"
@@ -234,6 +292,14 @@ onMounted(load)
             Edit event
           </RouterLink>
         </div>
+        <ConfirmDialog
+          :open="pendingAdvance !== null"
+          :title="pendingAdvanceTitle"
+          :message="pendingAdvanceMessage"
+          :confirm-label="pendingAdvanceTitle"
+          @confirm="onAdvanceConfirm"
+          @cancel="pendingAdvance = null"
+        />
       </Card>
 
       <Card title="Approval history">
@@ -315,7 +381,7 @@ onMounted(load)
   color: var(--gray-700);
 }
 .event-detail__description--empty {
-  color: var(--gray-400);
+  color: var(--muted);
 }
 .event-detail__actions {
   display: flex;
