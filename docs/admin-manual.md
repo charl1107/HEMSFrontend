@@ -13,7 +13,7 @@ Screenshots were taken from a working local installation.
 Open the portal and choose **Sign in**. Enter your campus email and password.
 
 Use the password your administrator gave you. If it is a temporary password you will be
-taken straight to a password screen (see [§6](#6-your-first-login-as-staff-changing-your-password)).
+taken straight to a password screen (see [§7](#7-your-first-login-as-staff-changing-your-password)).
 
 ---
 
@@ -130,7 +130,34 @@ and never "not tracked". Reports are for reading only — there are no exports.
 
 ---
 
-## 5. Managing users (Admin only)
+## 5. Audit log (Admin only)
+
+The **Audit** tab shows every request the portal has recorded — logins, event changes,
+user creation and so on.
+
+![Audit log](screenshots/21-audit-log.png)
+
+**Filters** across the top:
+
+| Filter | Notes |
+| --- | --- |
+| User | One person, or *All users*. |
+| Entity | The record type touched, e.g. `events`, `auth`. |
+| Action | What was done, e.g. `login`, `change-password`. |
+| From / To | A date range. |
+
+Click **Apply** to run the filters and **Reset** to clear them.
+
+**Columns:** Timestamp, User, Entity, Action, Method, Path, Summary (the detail that was
+recorded, such as the email used at login) and Status (the HTTP result — `200` success,
+`401` rejected login, and so on). **System** means the entry was not tied to a signed-in
+person.
+
+The entry count sits above the table, and **Previous** / **Next** move through the pages.
+
+---
+
+## 6. Managing users (Admin only)
 
 ### 5.1 The users list
 
@@ -194,7 +221,7 @@ already taken, the reason is shown for that row and the rest continue.
 
 ---
 
-## 6. Your first login as staff: changing your password
+## 7. Your first login as staff: changing your password
 
 If your account was given a temporary password, the portal sends you to
 **Change your password** the first time you sign in.
@@ -204,7 +231,7 @@ This applies to every role: staff, student officers, instructors and students al
 
 ---
 
-## 7. Things worth knowing
+## 8. Things worth knowing
 
 - **No approval queue.** Events go live the moment they are created.
 - **No attendance, no participants.** This portal manages events only.
@@ -216,7 +243,7 @@ This applies to every role: staff, student officers, instructors and students al
 
 ---
 
-## 8. Dark mode
+## 9. Dark mode
 
 The moon icon in the top bar switches the whole portal to a dark theme, and your choice is
 remembered on that device.

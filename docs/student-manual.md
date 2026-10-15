@@ -69,27 +69,7 @@ campus location, description and cover image.
 
 ---
 
-## 6. What students cannot do
-
-Students view events — they do not manage them. Specifically:
-
-- There is no **New event** button for students.
-- Students cannot edit events or change an event's status.
-- The staff pages (**Reports**, **Users**, **Audit**) and the event management pages are
-  not available.
-
-If you try to open one of those pages you will be returned to your dashboard with
-**"You don't have access to that page."**
-
-![Access denied](screenshots/18-student-guard-denied.png)
-
-If you think you should be able to manage events — for example as a student officer
-helping with a school activity — ask your department head or an Admin to give your
-account the right role.
-
----
-
-## 7. Good to know
+## 6. Good to know
 
 - **Events appear as soon as staff create them** — there is no waiting period.
 - **A cancelled event disappears** from the list until staff resume it.
