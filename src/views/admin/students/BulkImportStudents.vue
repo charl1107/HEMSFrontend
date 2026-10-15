@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { Button } from '@/components/ui'
 import { createUser } from '../../../api/users.api'
+import { apiErrorMessage } from '../../../api/http'
 import type { SafeUser } from '../../../api/auth.types'
 import { csvRowToPayload, parseStudentsCsv, CSV_TEMPLATE_HEADER, CSV_TEMPLATE_EXAMPLE, type CsvStudentRow } from './csv-import'
 
@@ -49,9 +50,12 @@ async function importRows() {
     try {
       created.push(await createUser(csvRowToPayload(entry.row)))
       entry.status = 'success'
-    } catch {
+    } catch (err) {
       entry.status = 'error'
-      entry.error = 'Could not create this account. Check that its email and student ID are unique, then try again.'
+      entry.error = apiErrorMessage(
+        err,
+        'Could not create this account. Check that its email and student ID are unique, then try again.',
+      )
     }
   }
   importing.value = false
@@ -62,14 +66,14 @@ async function importRows() {
 
 <template>
   <div class="bulk-import" data-testid="bulk-import-students">
-    <p>Upload a CSV file to create multiple student accounts. Leave email blank to use studentId@chcc.edu.ph, and leave password blank to use the default first-login password.</p>
+    <p>Upload a CSV file to create multiple user accounts. Leave email blank to use studentId@chcc.edu.ph, and leave password blank to use the default first-login password.</p>
     <button type="button" class="bulk-import__template" @click="downloadTemplate">Download CSV template</button>
     <label class="bulk-import__file">
       <span>{{ fileName || 'Choose a CSV file' }}</span>
       <input type="file" accept=".csv,text/csv" data-testid="bulk-import-file" @change="loadFile" />
     </label>
     <ul v-if="parseErrors.length" class="bulk-import__errors" data-testid="bulk-import-errors"><li v-for="error in parseErrors" :key="error">{{ error }}</li></ul>
-    <p v-if="rowStates.length">{{ rowStates.length }} valid student rows{{ done ? ` · ${rowStates.filter(row => row.status === 'success').length} created · ${rowStates.filter(row => row.status === 'error').length} failed` : ' ready' }}</p>
+    <p v-if="rowStates.length">{{ rowStates.length }} valid rows{{ done ? ` · ${rowStates.filter(row => row.status === 'success').length} created · ${rowStates.filter(row => row.status === 'error').length} failed` : ' ready' }}</p>
     <div v-if="rowStates.length" class="bulk-import__rows">
       <div v-for="entry in rowStates" :key="entry.row.line" :data-testid="`bulk-row-${entry.row.line}`">
         Row {{ entry.row.line }} — {{ entry.row.firstName }} {{ entry.row.lastName }} ({{ entry.row.email }}): {{ entry.status }}
@@ -78,7 +82,7 @@ async function importRows() {
     </div>
     <footer class="bulk-import__actions">
       <button type="button" @click="emit('cancel')">{{ done ? 'Close' : 'Cancel' }}</button>
-      <Button v-if="!done" label="Import students" data-testid="bulk-import-submit" :disabled="!canImport" @click="importRows" />
+      <Button v-if="!done" label="Import users" data-testid="bulk-import-submit" :disabled="!canImport" @click="importRows" />
     </footer>
   </div>
 </template>

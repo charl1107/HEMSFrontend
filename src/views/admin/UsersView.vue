@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { Button, Card, Modal } from '@/components/ui'
 import BulkImportStudents from './students/BulkImportStudents.vue'
-import AddStudentView from './students/AddStudentView.vue'
+import AddUserView from './students/AddUserView.vue'
 import { listUsers, assignRole, removeRole as removeUserRole, ROLE_NAMES } from '../../api/users.api'
 import { apiErrorMessage } from '../../api/http'
 import type { SafeUser } from '../../api/auth.types'
@@ -13,7 +13,7 @@ const pending = ref<Record<string, string>>({})
 const error = ref<string | null>(null)
 const loading = ref(false)
 const showImport = ref(false)
-const showAddStudent = ref(false)
+const showAddUser = ref(false)
 const notice = ref<string | null>(null)
 
 async function load() {
@@ -29,19 +29,19 @@ async function load() {
 }
 
 function onImported(created: SafeUser[]) {
-  notice.value = `${created.length} student${created.length === 1 ? '' : 's'} created successfully.`
+  notice.value = `${created.length} user${created.length === 1 ? '' : 's'} created successfully.`
   showImport.value = false
   void load()
 }
 
-function onStudentCreated(created: SafeUser) {
+function onUserCreated(created: SafeUser) {
   notice.value = `${created.firstName} ${created.lastName} was added successfully.`
-  showAddStudent.value = false
+  showAddUser.value = false
   void load()
 }
 
-function closeAddStudent(): void {
-  showAddStudent.value = false
+function closeAddUser(): void {
+  showAddUser.value = false
 }
 
 function setPending(userId: string, role: string) {
@@ -86,9 +86,9 @@ onMounted(load)
         <div class="users__toolbar-actions">
         <Button
           class="users__add"
-          label="Add Student"
+          label="Add users"
           data-testid="add-student-link"
-          @click="showAddStudent = true"
+          @click="showAddUser = true"
         />
         <Button
           class="users__bulk"
@@ -168,11 +168,11 @@ onMounted(load)
         <p v-else-if="!error" class="users__empty" data-testid="users-empty">No users found.</p>
       </template>
     </Card>
-    <Modal :open="showImport" title="Import students from CSV" @close="showImport = false">
+    <Modal :open="showImport" title="Import users from CSV" @close="showImport = false">
       <BulkImportStudents @cancel="showImport = false" @imported="onImported" />
     </Modal>
-    <Modal :open="showAddStudent" title="Add student" max-width="44rem" @close="closeAddStudent">
-      <AddStudentView :overlay="true" @cancel="closeAddStudent" @created="onStudentCreated" />
+    <Modal :open="showAddUser" title="Add user" max-width="44rem" @close="closeAddUser">
+      <AddUserView :overlay="true" @cancel="closeAddUser" @created="onUserCreated" />
     </Modal>
   </main>
 </template>

@@ -3,6 +3,7 @@ import type { CreateUserPayload } from '../../../api/users.api'
 export const DEFAULT_STUDENT_PASSWORD = 'ChccAY2026'
 
 export interface StudentFormValues {
+  role: string
   studentId: string
   firstName: string
   middleName?: string
@@ -20,17 +21,20 @@ export type StudentFieldErrors = Partial<Record<keyof StudentFormValues, string>
 
 export function validateStudentForm(values: StudentFormValues): StudentFieldErrors {
   const errors: StudentFieldErrors = {}
-  if (!values.studentId.trim()) errors.studentId = 'Student ID is required.'
+  const isStudent = values.role === 'Student'
+  if (isStudent && !values.studentId.trim()) errors.studentId = 'Student ID is required.'
   if (!values.firstName.trim()) errors.firstName = 'First name is required.'
   if (!values.lastName.trim()) errors.lastName = 'Last name is required.'
   if (!values.email.trim()) errors.email = 'Email address is required.'
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim()))
     errors.email = 'Enter a valid email address.'
-  if (!values.program.trim()) errors.program = 'Program / Course is required.'
-  const year = Number(values.yearLevel)
-  if (!values.yearLevel.trim()) errors.yearLevel = 'Year level is required.'
-  else if (!Number.isInteger(year) || year < 1 || year > 4)
-    errors.yearLevel = 'Year level must be between 1 and 4.'
+  if (isStudent) {
+    if (!values.program.trim()) errors.program = 'Program / Course is required.'
+    const year = Number(values.yearLevel)
+    if (!values.yearLevel.trim()) errors.yearLevel = 'Year level is required.'
+    else if (!Number.isInteger(year) || year < 1 || year > 4)
+      errors.yearLevel = 'Year level must be between 1 and 4.'
+  }
   if (values.password && values.password.length < 8)
     errors.password = 'Password must be at least 8 characters.'
   if (values.password && !values.confirmPassword) errors.confirmPassword = 'Confirm password is required.'
@@ -44,6 +48,7 @@ export function hasStudentFieldErrors(errors: StudentFieldErrors): boolean {
 }
 
 export function toCreateUserPayload(values: StudentFormValues): CreateUserPayload {
+  const isStudent = values.role === 'Student'
   return {
     email: values.email.trim(),
     password: values.password || DEFAULT_STUDENT_PASSWORD,
@@ -52,9 +57,15 @@ export function toCreateUserPayload(values: StudentFormValues): CreateUserPayloa
     lastName: values.lastName.trim(),
     ...(values.suffix?.trim() ? { suffix: values.suffix.trim() } : {}),
     isActive: values.isActive,
-    roles: ['Student'],
-    studentId: values.studentId.trim(),
-    program: values.program.trim(),
-    yearLevel: Number(values.yearLevel),
+    roles: [values.role],
+    // Student-only columns are sent for students alone — the other roles have
+    // no studentId/program/yearLevel on the server.
+    ...(isStudent
+      ? {
+          studentId: values.studentId.trim(),
+          program: values.program.trim(),
+          yearLevel: Number(values.yearLevel),
+        }
+      : {}),
   }
 }

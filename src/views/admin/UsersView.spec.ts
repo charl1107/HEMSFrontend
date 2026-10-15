@@ -55,15 +55,18 @@ describe('UsersView', () => {
     }
   }
 
-  it('shows an Add Student button that opens the overlay', async () => {
+  it('shows an Add users button that opens the overlay titled Add user', async () => {
     const wrapper = await mountView()
 
     const button = wrapper.find('[data-testid="add-student-link"]')
     expect(button.exists()).toBe(true)
     expect(button.element.tagName).toBe('BUTTON')
-    expect(button.text()).toContain('Add Student')
+    expect(button.text()).toContain('Add users')
     await button.trigger('click')
     expect(document.querySelector('[data-testid="add-student-form"]')).not.toBeNull()
+    expect(
+      document.querySelector('[data-testid="ui-modal"] .ui-modal-header h2')?.textContent,
+    ).toBe('Add user')
   })
 
   it('keeps the admin-users container testid', async () => {

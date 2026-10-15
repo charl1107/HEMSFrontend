@@ -8,6 +8,7 @@ import {
 } from './student-form'
 
 const valid: StudentFormValues = {
+  role: 'Student',
   studentId: '2026-001',
   firstName: 'Sam',
   lastName: 'Lee',
@@ -27,6 +28,7 @@ describe('validateStudentForm', () => {
 
   it('requires profile fields while allowing the default password', () => {
     const errors = validateStudentForm({
+      role: 'Student',
       studentId: '', firstName: '', lastName: '', email: '',
       program: '', yearLevel: '', password: '', confirmPassword: '', isActive: true,
     })
@@ -39,6 +41,7 @@ describe('validateStudentForm', () => {
       yearLevel: 'Year level is required.',
     })
     expect(validateStudentForm({
+      role: 'Student',
       studentId: '', firstName: '', lastName: '', email: '',
       program: '', yearLevel: '', password: '', confirmPassword: '', isActive: true,
     })).toEqual({
@@ -49,6 +52,18 @@ describe('validateStudentForm', () => {
       program: 'Program / Course is required.',
       yearLevel: 'Year level is required.',
     })
+  })
+
+  it('skips the student-only rules for non-Student roles', () => {
+    expect(
+      validateStudentForm({
+        ...valid,
+        role: 'Instructor',
+        studentId: '',
+        program: '',
+        yearLevel: '',
+      }),
+    ).toEqual({})
   })
 
   it('rejects invalid email', () => {
@@ -91,5 +106,19 @@ describe('toCreateUserPayload', () => {
       program: 'BSHM',
       yearLevel: 1,
     })
+  })
+
+  it('omits the student-only fields for any other role', () => {
+    const payload = toCreateUserPayload({
+      ...valid,
+      role: 'Event Coordinator',
+      studentId: '',
+      program: '',
+      yearLevel: '',
+    })
+    expect(payload.roles).toEqual(['Event Coordinator'])
+    expect(payload).not.toHaveProperty('studentId')
+    expect(payload).not.toHaveProperty('program')
+    expect(payload).not.toHaveProperty('yearLevel')
   })
 })

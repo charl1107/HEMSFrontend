@@ -3,8 +3,9 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import AddStudentView from './AddStudentView.vue'
-import { createUser, type CreateUserPayload } from '../../../api/users.api'
+import AddUserView from './AddUserView.vue'
+import { createUser, ROLE_NAMES, type CreateUserPayload } from '../../../api/users.api'
+import { DEFAULT_STUDENT_PASSWORD } from './student-form'
 import type { SafeUser } from '../../../api/auth.types'
 
 vi.mock('../../../api/users.api', async (importOriginal) => {
@@ -35,7 +36,7 @@ async function createTestRouter(): Promise<Router> {
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: { template: '<div />' } },
-      { path: '/admin/students/new', name: 'admin-student-new', component: AddStudentView },
+      { path: '/admin/students/new', name: 'admin-student-new', component: AddUserView },
       { path: '/admin/users', name: 'admin-users', component: { template: '<div />' } },
     ],
   })
@@ -45,7 +46,7 @@ async function createTestRouter(): Promise<Router> {
 }
 
 async function mountView(router: Router): Promise<VueWrapper> {
-  return mount(AddStudentView, { global: { plugins: [router] } })
+  return mount(AddUserView, { global: { plugins: [router] } })
 }
 
 async function fillValid(wrapper: VueWrapper): Promise<void> {
@@ -59,7 +60,7 @@ async function fillValid(wrapper: VueWrapper): Promise<void> {
   await wrapper.find('[data-testid="confirmPassword"]').setValue('ChangeMe123!')
 }
 
-describe('AddStudentView', () => {
+describe('AddUserView', () => {
   let router: Router
 
   beforeEach(async () => {
@@ -147,5 +148,52 @@ describe('AddStudentView', () => {
 
     const payload = vi.mocked(createUser).mock.calls[0][0] as CreateUserPayload
     expect(payload.isActive).toBe(false)
+  })
+
+  it('offers exactly the five non-Admin roles and defaults to Student', async () => {
+    const wrapper = await mountView(router)
+
+    const options = wrapper.find('[data-testid="role"]').findAll('option')
+    expect(options.map((option) => option.text())).toEqual(ROLE_NAMES as unknown as string[])
+    expect(options.map((option) => option.text())).not.toContain('Admin')
+    expect(wrapper.find<HTMLSelectElement>('[data-testid="role"]').element.value).toBe(
+      'Student',
+    )
+  })
+
+  it('shows Student ID, Program / Course and Year level only when the role is Student', async () => {
+    const wrapper = await mountView(router)
+
+    for (const testid of ['studentId', 'program', 'yearLevel']) {
+      expect(wrapper.find(`[data-testid="${testid}"]`).exists()).toBe(true)
+    }
+
+    await wrapper.find('[data-testid="role"]').setValue('Instructor')
+
+    for (const testid of ['studentId', 'program', 'yearLevel']) {
+      expect(wrapper.find(`[data-testid="${testid}"]`).exists()).toBe(false)
+    }
+  })
+
+  it('submits an Instructor payload with roles: [Instructor] and no student fields', async () => {
+    vi.mocked(createUser).mockResolvedValue(makeUser())
+    const wrapper = await mountView(router)
+
+    await wrapper.find('[data-testid="role"]').setValue('Instructor')
+    await wrapper.find('[data-testid="firstName"]').setValue('Sam')
+    await wrapper.find('[data-testid="lastName"]').setValue('Lee')
+    await wrapper.find('[data-testid="email"]').setValue('sam@school.edu')
+    await wrapper.find('[data-testid="add-student-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(createUser).toHaveBeenCalledTimes(1)
+    const payload = vi.mocked(createUser).mock.calls[0][0] as CreateUserPayload
+    expect(payload.roles).toEqual(['Instructor'])
+    expect(payload).not.toHaveProperty('studentId')
+    expect(payload).not.toHaveProperty('program')
+    expect(payload).not.toHaveProperty('yearLevel')
+    // A blank password still falls back to DEFAULT_STUDENT_PASSWORD for every role.
+    expect(payload.password).toBe(DEFAULT_STUDENT_PASSWORD)
+    expect(router.currentRoute.value.name).toBe('admin-users')
   })
 })

@@ -6,7 +6,7 @@ import StudentDashboardView from '../views/dashboards/StudentDashboardView.vue'
 import StaffDashboardView from '../views/dashboards/StaffDashboardView.vue'
 import UsersView from '../views/admin/UsersView.vue'
 import AuditLogView from '../views/admin/AuditLogView.vue'
-import AddStudentView from '../views/admin/students/AddStudentView.vue'
+import AddUserView from '../views/admin/students/AddUserView.vue'
 import AppLayout from '../layouts/AppLayout.vue'
 import EventsListView from '../views/app/events/EventsListView.vue'
 import EventFormView from '../views/app/events/EventFormView.vue'
@@ -81,7 +81,7 @@ export const routes: RouteRecordRaw[] = [
       {
         path: 'admin/students/new',
         name: 'admin-student-new',
-        component: AddStudentView,
+        component: AddUserView,
         meta: { roles: ['Admin'] },
       },
       {

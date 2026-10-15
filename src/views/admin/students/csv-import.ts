@@ -3,6 +3,7 @@ import { DEFAULT_STUDENT_PASSWORD } from './student-form'
 
 export interface CsvStudentRow {
   line: number
+  role: string
   studentId: string
   firstName: string
   middleName?: string
@@ -20,7 +21,7 @@ export interface CsvParseResult {
   errors: string[]
 }
 
-const REQUIRED_HEADERS = ['studentid', 'firstname', 'lastname', 'program', 'yearlevel']
+const REQUIRED_HEADERS = ['firstname', 'lastname', 'program', 'yearlevel']
 
 function defaultInstitutionalEmail(studentId: string): string {
   return /^[^@\s]+@chcc\.edu\.ph$/i.test(studentId)
@@ -88,6 +89,11 @@ export function parseStudentsCsv(text: string): CsvParseResult {
   records.slice(1).forEach((cells, rowIndex) => {
     const line = rowIndex + 2
     const get = (name: string) => (cells[index(name)] ?? '').trim()
+    const rawRole = get('role')
+    // Blank Role means Student. Any other value goes to the server untouched,
+    // so Admin / unknown roles fail with the server's own message on the row.
+    const role = rawRole || 'Student'
+    const isStudent = role === 'Student'
     const studentId = get('studentid')
     const firstName = get('firstname')
     const middleName = get('middlename')
@@ -98,16 +104,20 @@ export function parseStudentsCsv(text: string): CsvParseResult {
     const yearLevel = get('yearlevel')
     const password = get('password')
     const rawActive = get('isactive').toLowerCase()
-    if (![studentId, firstName, middleName, lastName, suffix, email, program, yearLevel, password, rawActive].some(Boolean)) return
+    if (![studentId, firstName, middleName, lastName, suffix, email, program, yearLevel, password, rawActive, rawRole].some(Boolean)) return
 
     const invalid: string[] = []
-    if (!studentId) invalid.push('studentId')
+    if (isStudent && !studentId) invalid.push('studentId')
     if (!firstName) invalid.push('firstName')
     if (!lastName) invalid.push('lastName')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid.push('email')
-    if (!program) invalid.push('program')
-    const year = Number(yearLevel)
-    if (!Number.isInteger(year) || year < 1 || year > 4) invalid.push('yearLevel')
+    // program and yearLevel are parsed for every row but only Student rows
+    // carry them, so they are only required (and validated) for those.
+    if (isStudent) {
+      if (!program) invalid.push('program')
+      const year = Number(yearLevel)
+      if (!Number.isInteger(year) || year < 1 || year > 4) invalid.push('yearLevel')
+    }
     if (password && password.length < 8) invalid.push('password (minimum 8 characters)')
     if (rawActive && !['true', 'false', '1', '0'].includes(rawActive)) invalid.push('isActive (use true/false or 1/0)')
     if (invalid.length) {
@@ -116,6 +126,7 @@ export function parseStudentsCsv(text: string): CsvParseResult {
     }
     rows.push({
       line,
+      role,
       studentId,
       firstName,
       middleName,
@@ -132,6 +143,7 @@ export function parseStudentsCsv(text: string): CsvParseResult {
 }
 
 export function csvRowToPayload(row: CsvStudentRow): CreateUserPayload {
+  const isStudent = row.role === 'Student'
   return {
     email: row.email,
     password: row.password,
@@ -140,12 +152,13 @@ export function csvRowToPayload(row: CsvStudentRow): CreateUserPayload {
     lastName: row.lastName,
     ...(row.suffix ? { suffix: row.suffix } : {}),
     isActive: row.isActive,
-    roles: ['Student'],
-    studentId: row.studentId,
-    program: row.program,
-    yearLevel: Number(row.yearLevel),
+    roles: [row.role],
+    // Non-student rows keep their parsed program/yearLevel out of the payload.
+    ...(isStudent
+      ? { studentId: row.studentId, program: row.program, yearLevel: Number(row.yearLevel) }
+      : {}),
   }
 }
 
-export const CSV_TEMPLATE_HEADER = 'studentId,firstName,middleName,lastName,suffix,email,program,yearLevel,password,isActive'
-export const CSV_TEMPLATE_EXAMPLE = '59782024,Jamie,,Cruz,,,BS Hospitality Management,2,,true'
+export const CSV_TEMPLATE_HEADER = 'role,studentId,firstName,middleName,lastName,suffix,email,program,yearLevel,password,isActive'
+export const CSV_TEMPLATE_EXAMPLE = 'Student,59782024,Jamie,,Cruz,,,BS Hospitality Management,2,,true'

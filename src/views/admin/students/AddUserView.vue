@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, Card } from '@/components/ui'
-import { createUser } from '../../../api/users.api'
+import { createUser, ROLE_NAMES } from '../../../api/users.api'
 import {
   DEFAULT_STUDENT_PASSWORD,
   hasStudentFieldErrors,
@@ -20,6 +20,7 @@ const emit = defineEmits<{
 const router = useRouter()
 
 const values = ref<StudentFormValues>({
+  role: 'Student',
   studentId: '',
   firstName: '',
   middleName: '',
@@ -47,7 +48,7 @@ async function onSubmit() {
     if (props.overlay) emit('created', created)
     else await router.push({ name: 'admin-users' })
   } catch (err) {
-    formError.value = err instanceof Error ? err.message : 'Failed to create student'
+    formError.value = err instanceof Error ? err.message : 'Failed to create user'
   } finally {
     saving.value = false
   }
@@ -66,9 +67,9 @@ function onStatusChange(event: Event) {
       @submit.prevent="onSubmit"
     >
       <header v-if="!overlay" class="add-student__header">
-        <p class="add-student__eyebrow">Students</p>
-        <h1 class="add-student__title">Add Student</h1>
-        <p class="add-student__intro">Create a new student account</p>
+        <p class="add-student__eyebrow">Users</p>
+        <h1 class="add-student__title">Add user</h1>
+        <p class="add-student__intro">Create a new user account</p>
       </header>
 
       <p
@@ -82,9 +83,21 @@ function onStatusChange(event: Event) {
 
       <Card>
         <fieldset class="add-student__section" :disabled="saving">
-          <legend class="add-student__legend">Student Information</legend>
+          <legend class="add-student__legend">User Information</legend>
 
           <label class="add-student__field">
+            <span class="add-student__label">Role</span>
+            <select
+              v-model="values.role"
+              class="add-student__input"
+              data-testid="role"
+              name="role"
+            >
+              <option v-for="role in ROLE_NAMES" :key="role" :value="role">{{ role }}</option>
+            </select>
+          </label>
+
+          <label v-if="values.role === 'Student'" class="add-student__field">
             <span class="add-student__label">Student ID</span>
             <input
               v-model="values.studentId"
@@ -193,7 +206,7 @@ function onStatusChange(event: Event) {
             </span>
           </label>
 
-          <div class="add-student__row">
+          <div v-if="values.role === 'Student'" class="add-student__row">
             <label class="add-student__field">
               <span class="add-student__label">Program / Course</span>
               <input
@@ -243,7 +256,7 @@ function onStatusChange(event: Event) {
         <fieldset class="add-student__section" :disabled="saving">
           <legend class="add-student__legend">Account Information</legend>
 
-          <p class="add-student__intro">Students who do not receive a custom password use the default first-login password: <strong>{{ DEFAULT_STUDENT_PASSWORD }}</strong>.</p>
+          <p class="add-student__intro">New accounts must change their password at first login. Accounts without a custom password use the default: <strong>{{ DEFAULT_STUDENT_PASSWORD }}</strong>.</p>
           <label class="add-student__field">
             <span class="add-student__label">Password (optional)</span>
             <input
@@ -319,7 +332,7 @@ function onStatusChange(event: Event) {
         </RouterLink>
         <Button
           type="submit"
-          label="Create Student"
+          label="Create user"
           data-testid="create-student-submit"
           :disabled="saving"
         />
