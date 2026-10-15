@@ -59,17 +59,55 @@ describe('ReportsDashboardView', () => {
     expect(wrapper.find('[data-testid="stat-task-rate"]').text()).toBe('40%')
   })
 
-  it('renders status, type and task tables', async () => {
+  it('renders the five statistics tables', async () => {
     const wrapper = await mountDashboard()
 
-    expect(wrapper.find('[data-testid="by-status-Planning"]').text()).toContain('1')
-    expect(wrapper.find('[data-testid="by-status-Completed"]').text()).toContain('1')
-    expect(wrapper.find('[data-testid="event-type-Workshop"]').text()).toContain('2')
+    const status = wrapper.find('[data-testid="reports-by-status"]')
+    expect(status.text()).toContain('Planning')
+    expect(status.text()).toContain('Completed')
 
-    const tasks = wrapper.find('[data-testid="task-completion-row"]')
+    const type = wrapper.find('[data-testid="reports-by-type"]')
+    expect(type.text()).toContain('Workshop')
+    expect(type.text()).toContain('2')
+
+    // byMonth keys are YYYY-MM strings; June has 2 events.
+    const month = wrapper.find('[data-testid="reports-by-month"]')
+    expect(month.text()).toContain('2026-06')
+    expect(month.text()).toContain('2')
+
+    const campus = wrapper.find('[data-testid="reports-by-campus"]')
+    expect(campus.text()).toContain('Inside campus')
+    expect(campus.text()).toContain('Outside campus')
+
+    const tasks = wrapper.find('[data-testid="reports-tasks"]')
     expect(tasks.text()).toContain('2')
     expect(tasks.text()).toContain('5')
     expect(tasks.text()).toContain('40%')
+  })
+
+  it('still shows categories with a zero count', async () => {
+    vi.mocked(getSummary).mockResolvedValue(
+      makeSummary({
+        events: {
+          total: 0,
+          byStatus: { Planning: 0, Cancelled: 0 },
+          byType: {},
+          byMonth: {},
+          byCampusScope: { OnCampus: 0, OffCampus: 0 },
+        },
+      }),
+    )
+
+    const wrapper = await mountDashboard()
+
+    expect(wrapper.find('[data-testid="reports-by-status"]').text()).toContain('Planning')
+    expect(wrapper.find('[data-testid="reports-by-status"]').text()).toContain('Cancelled')
+  })
+
+  it('renders no attendance, absentee or department data', async () => {
+    const wrapper = await mountDashboard()
+
+    expect(wrapper.text()).not.toMatch(/Attend|Absent|Department/)
   })
 
   it('shows the error state when the summary fails to load', async () => {

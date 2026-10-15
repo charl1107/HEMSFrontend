@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Card, StatusBadge } from '@/components/ui'
+import { Card, DataTable, StatusBadge, type DataTableColumn } from '@/components/ui'
 import { apiErrorMessage } from '../../../api/http'
 import { getSummary, type SummaryReport } from '../../../api/reports.api'
 
@@ -9,6 +9,51 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 
 const hasData = computed(() => summary.value !== null)
+
+const labelCountColumns: DataTableColumn[] = [
+  { key: 'label', header: 'Category', field: 'label' },
+  { key: 'count', header: 'Count', field: 'count' },
+]
+
+const statusColumns: DataTableColumn[] = [
+  { key: 'label', header: 'Status', field: 'label' },
+  { key: 'count', header: 'Count', field: 'count' },
+]
+
+const campusColumns: DataTableColumn[] = [
+  { key: 'label', header: 'Location', field: 'label' },
+  { key: 'count', header: 'Count', field: 'count' },
+]
+
+const taskColumns: DataTableColumn[] = [
+  { key: 'done', header: 'Done', field: 'done' },
+  { key: 'total', header: 'Total', field: 'total' },
+  { key: 'rate', header: 'Rate', field: 'rate' },
+]
+
+const CAMPUS_LABELS: Record<'OnCampus' | 'OffCampus', string> = {
+  OnCampus: 'Inside campus',
+  OffCampus: 'Outside campus',
+}
+
+function countRows(counts: Record<string, number>): Array<{ label: string; count: number }> {
+  return Object.entries(counts).map(([label, count]) => ({ label, count }))
+}
+
+const statusRows = computed(() => countRows(summary.value?.events.byStatus ?? {}))
+const typeRows = computed(() => countRows(summary.value?.events.byType ?? {}))
+const monthRows = computed(() => countRows(summary.value?.events.byMonth ?? {}))
+const campusRows = computed(() =>
+  Object.entries(summary.value?.events.byCampusScope ?? {}).map(([scope, count]) => ({
+    label: CAMPUS_LABELS[scope as keyof typeof CAMPUS_LABELS] ?? scope,
+    count,
+  })),
+)
+const taskRows = computed(() => {
+  const tasks = summary.value?.tasks
+  if (!tasks) return []
+  return [{ done: tasks.done, total: tasks.total, rate: `${tasks.completionRate}%` }]
+})
 
 async function load(): Promise<void> {
   loading.value = true
@@ -69,72 +114,47 @@ onMounted(load)
         <div class="reports__tables">
           <section class="reports__section" data-testid="reports-by-status">
             <h3 class="reports__section-title">Events by status</h3>
-            <table class="reports__table">
-              <thead>
-                <tr>
-                  <th scope="col">Status</th>
-                  <th scope="col">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(count, status) in summary.events.byStatus"
-                  :key="status"
-                  :data-testid="`by-status-${status}`"
-                >
-                  <td><StatusBadge :status="status" /></td>
-                  <td>{{ count }}</td>
-                </tr>
-                <tr v-if="!Object.keys(summary.events.byStatus).length">
-                  <td colspan="2" class="reports__empty">No events yet.</td>
-                </tr>
-              </tbody>
-            </table>
+            <DataTable :columns="statusColumns" :rows="statusRows" data-key="label">
+              <template #cell="{ row, column }">
+                <StatusBadge v-if="column.key === 'label'" :status="row.label" />
+                <template v-else>{{ row[column.key as 'count'] }}</template>
+              </template>
+              <template #empty>
+                <p class="reports__empty">No events yet.</p>
+              </template>
+            </DataTable>
           </section>
 
           <section class="reports__section" data-testid="reports-by-type">
             <h3 class="reports__section-title">Events by type</h3>
-            <table class="reports__table">
-              <thead>
-                <tr>
-                  <th scope="col">Type</th>
-                  <th scope="col">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(count, type) in summary.events.byType"
-                  :key="type"
-                  :data-testid="`event-type-${type}`"
-                >
-                  <td>{{ type }}</td>
-                  <td>{{ count }}</td>
-                </tr>
-                <tr v-if="!Object.keys(summary.events.byType).length">
-                  <td colspan="2" class="reports__empty">No events yet.</td>
-                </tr>
-              </tbody>
-            </table>
+            <DataTable :columns="labelCountColumns" :rows="typeRows" data-key="label">
+              <template #empty>
+                <p class="reports__empty">No events yet.</p>
+              </template>
+            </DataTable>
+          </section>
+
+          <section class="reports__section" data-testid="reports-by-month">
+            <h3 class="reports__section-title">Events by month</h3>
+            <DataTable :columns="labelCountColumns" :rows="monthRows" data-key="label">
+              <template #empty>
+                <p class="reports__empty">No events yet.</p>
+              </template>
+            </DataTable>
+          </section>
+
+          <section class="reports__section" data-testid="reports-by-campus">
+            <h3 class="reports__section-title">Events by campus location</h3>
+            <DataTable :columns="campusColumns" :rows="campusRows" data-key="label">
+              <template #empty>
+                <p class="reports__empty">No events yet.</p>
+              </template>
+            </DataTable>
           </section>
 
           <section class="reports__section" data-testid="reports-tasks">
             <h3 class="reports__section-title">Task completion</h3>
-            <table class="reports__table">
-              <thead>
-                <tr>
-                  <th scope="col">Done</th>
-                  <th scope="col">Total</th>
-                  <th scope="col">Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr data-testid="task-completion-row">
-                  <td>{{ summary.tasks.done }}</td>
-                  <td>{{ summary.tasks.total }}</td>
-                  <td>{{ summary.tasks.completionRate }}%</td>
-                </tr>
-              </tbody>
-            </table>
+            <DataTable :columns="taskColumns" :rows="taskRows" data-key="done" />
           </section>
         </div>
       </template>
@@ -194,21 +214,6 @@ onMounted(load)
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
   color: var(--gray-700);
-}
-.reports__table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.92em;
-}
-.reports__table th,
-.reports__table td {
-  border-bottom: 1px solid var(--line);
-  padding: 0.45rem 0.5rem;
-  text-align: left;
-}
-.reports__table th {
-  color: var(--muted);
-  font-weight: 600;
 }
 .reports__empty {
   color: var(--muted);
