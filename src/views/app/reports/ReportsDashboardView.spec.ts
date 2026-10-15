@@ -23,7 +23,6 @@ function makeSummary(overrides: Partial<SummaryReport> = {}): SummaryReport {
       byMonth: { '2026-06': 2, '2026-07': 1 },
       byCampusScope: { OnCampus: 2, OffCampus: 1 },
     },
-    tasks: { total: 5, done: 2, completionRate: 40 },
     ...overrides,
   }
 }
@@ -62,11 +61,9 @@ describe('ReportsDashboardView', () => {
 
     expect(wrapper.find('[data-testid="reports-dashboard"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="stat-events"]').text()).toBe('3')
-    // completionRate is a percentage to 1 decimal, not a 0–1 fraction.
-    expect(wrapper.find('[data-testid="stat-task-rate"]').text()).toBe('40%')
   })
 
-  it('renders the five statistics tables with the expected counts', async () => {
+  it('renders the four event statistics tables with the expected counts', async () => {
     const wrapper = await mountDashboard()
 
     const status = wrapper.find('[data-testid="reports-by-status"]')
@@ -88,11 +85,6 @@ describe('ReportsDashboardView', () => {
     const campus = wrapper.find('[data-testid="reports-by-campus"]')
     expect(rowCells(campus, 'Inside campus')).toEqual(['Inside campus', '2'])
     expect(rowCells(campus, 'Outside campus')).toEqual(['Outside campus', '1'])
-
-    // The task table's single row has no label column: cells are Done/Total/Rate.
-    // Keyed on the Done cell via rowCells, so a swapped or misrowed count fails.
-    const tasks = wrapper.find('[data-testid="reports-tasks"]')
-    expect(rowCells(tasks, '2')).toEqual(['2', '5', '40%'])
   })
 
   it('still shows categories with a zero count', async () => {
@@ -157,10 +149,10 @@ describe('ReportsDashboardView', () => {
     expect(rowCells(campus, 'Other location')).toEqual(['Other location', '7'])
   })
 
-  it('renders no attendance, absentee or department data', async () => {
+  it('renders no attendance, absentee, task or department data', async () => {
     const wrapper = await mountDashboard()
 
-    expect(wrapper.text()).not.toMatch(/Attend|Absent|Department/)
+    expect(wrapper.text()).not.toMatch(/Attend|Absent|Task|Department/)
   })
 
   it('shows the error state when the summary fails to load', async () => {

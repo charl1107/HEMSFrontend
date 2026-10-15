@@ -14,14 +14,6 @@ export async function listUsers(): Promise<SafeUser[]> {
   return data
 }
 
-export async function tryListUsers(): Promise<SafeUser[] | null> {
-  try {
-    return await listUsers()
-  } catch {
-    return null
-  }
-}
-
 export async function assignRole(userId: string, role: string): Promise<SafeUser> {
   const { data } = await http.post<SafeUser>(`/users/${userId}/roles`, { role })
   return data

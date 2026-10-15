@@ -6,14 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EventDetailView from './EventDetailView.vue'
 import { advanceEvent, getEvent, updateEvent, type EventRecord } from '../../../api/events.api'
 import { useAuthStore } from '../../../stores/auth.store'
-import { listCommittees, type CommitteeRecord } from '../../../api/committees.api'
-import { listTasks } from '../../../api/tasks.api'
-import { listSchedule } from '../../../api/schedule.api'
-import {
-  listDocuments,
-  type DocumentRecord,
-} from '../../../api/documents.api'
-import { tryListUsers } from '../../../api/users.api'
 import { expectSequentialHeadings } from '../../../test-utils/headings'
 
 vi.mock('../../../api/events.api', async (importOriginal) => {
@@ -23,60 +15,6 @@ vi.mock('../../../api/events.api', async (importOriginal) => {
     getEvent: vi.fn(),
     advanceEvent: vi.fn(),
     updateEvent: vi.fn(),
-  }
-})
-
-vi.mock('../../../api/committees.api', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../../api/committees.api')>()
-  return {
-    ...actual,
-    listCommittees: vi.fn(),
-    createCommittee: vi.fn(),
-    addCommitteeMember: vi.fn(),
-    removeCommitteeMember: vi.fn(),
-  }
-})
-
-vi.mock('../../../api/users.api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../api/users.api')>()
-  return {
-    ...actual,
-    tryListUsers: vi.fn(),
-  }
-})
-
-vi.mock('../../../api/tasks.api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../api/tasks.api')>()
-  return {
-    ...actual,
-    listTasks: vi.fn(),
-    createTask: vi.fn(),
-    updateTask: vi.fn(),
-    removeTask: vi.fn(),
-  }
-})
-
-vi.mock('../../../api/schedule.api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../api/schedule.api')>()
-  return {
-    ...actual,
-    listSchedule: vi.fn(),
-    createSchedule: vi.fn(),
-    updateSchedule: vi.fn(),
-    removeSchedule: vi.fn(),
-  }
-})
-
-vi.mock('../../../api/documents.api', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../../api/documents.api')>()
-  return {
-    ...actual,
-    listDocuments: vi.fn(),
-    uploadDocument: vi.fn(),
-    downloadDocument: vi.fn(),
-    removeDocument: vi.fn(),
   }
 })
 
@@ -94,57 +32,6 @@ function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
     createdById: 'u1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
-  }
-}
-
-function makeCommittee(
-  memberUserIds: string[],
-  overrides: Partial<CommitteeRecord> = {},
-): CommitteeRecord {
-  return {
-    id: 'c1',
-    eventId: 'e1',
-    name: 'Logistics',
-    description: null,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    members: memberUserIds.map((userId, index) => ({
-      id: `m${index + 1}`,
-      committeeId: 'c1',
-      userId,
-      createdAt: '2026-01-02T00:00:00.000Z',
-      user: {
-        id: userId,
-        firstName: 'Member',
-        lastName: `${index + 1}`,
-        email: `${userId}@x.com`,
-      },
-    })),
-    ...overrides,
-  }
-}
-
-function makeDocument(
-  overrides: Partial<DocumentRecord> = {},
-): DocumentRecord {
-  return {
-    id: 'd1',
-    eventId: 'e1',
-    uploadedById: 'u1',
-    docType: 'Proposal',
-    filePath: 'events/e1/proposal.pdf',
-    originalFilename: 'proposal.pdf',
-    mimeType: 'application/pdf',
-    fileSize: 2048,
-    createdAt: '2026-01-03T00:00:00.000Z',
-    updatedAt: '2026-01-03T00:00:00.000Z',
-    uploadedBy: {
-      id: 'u1',
-      firstName: 'Ada',
-      lastName: 'Lovelace',
-      email: 'ada@x.com',
-    },
     ...overrides,
   }
 }
@@ -203,124 +90,28 @@ describe('EventDetailView', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     router = await createTestRouter()
-    vi.mocked(listCommittees).mockResolvedValue([])
-    vi.mocked(listTasks).mockResolvedValue([])
-    vi.mocked(listSchedule).mockResolvedValue([])
-    vi.mocked(listDocuments).mockResolvedValue([])
-    vi.mocked(tryListUsers).mockResolvedValue(null)
   })
 
-  it('gates roster sections on a Cancelled event', async () => {
+  it('renders no task, schedule, committee or document sections', async () => {
     setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Cancelled', createdById: 'u1' }),
-    )
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Planning' }))
 
     const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="committees-gated"]').exists()).toBe(true)
-    expect(listCommittees).not.toHaveBeenCalled()
+    for (const testid of [
+      'tasks-section',
+      'schedule-section',
+      'committees-section',
+      'documents-section',
+      'task-create-form',
+      'schedule-form',
+      'committee-create-form',
+      'document-upload-form',
+    ]) {
+      expect(wrapper.find(`[data-testid="${testid}"]`).exists()).toBe(false)
+    }
   })
 
-  it('shows the committee list on a Planning event but no management forms on the page', async () => {
-    setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Planning', createdById: 'u1' }),
-    )
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="committees-section"]').exists()).toBe(true)
-    expect(listCommittees).toHaveBeenCalledWith('e1')
-    expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(false)
-  })
-
-  it('hides committee management for a non-owner without manager roles', async () => {
-    setSession(['Event Coordinator'], 'someone-else')
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
-    )
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(false)
-  })
-
-  it('shows task, schedule and document lists on a Planning event with no management forms on the page', async () => {
-    setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Planning', createdById: 'u1' }),
-    )
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="tasks-section"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="schedule-section"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="documents-section"]').exists()).toBe(true)
-    expect(listTasks).toHaveBeenCalledWith('e1')
-    expect(listSchedule).toHaveBeenCalledWith('e1')
-    expect(listDocuments).toHaveBeenCalledWith('e1')
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="document-upload-form"]').exists()).toBe(
-      false,
-    )
-  })
-
-  it('gates tasks and schedule when the event is Cancelled', async () => {
-    setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Cancelled', createdById: 'u1' }),
-    )
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="tasks-gated"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="schedule-gated"]').exists()).toBe(true)
-    expect(listTasks).not.toHaveBeenCalled()
-    expect(listSchedule).not.toHaveBeenCalled()
-  })
-
-  it('hides planning management for a viewer without planning rights', async () => {
-    setSession(['Student'], 'someone-else')
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
-    )
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="tasks-section"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="document-upload-form"]').exists()).toBe(
-      false,
-    )
-    expect(listTasks).toHaveBeenCalledWith('e1')
-    expect(listSchedule).toHaveBeenCalledWith('e1')
-  })
-
-  it('hides planning management and the Edit button for a non-owner Event Coordinator without membership', async () => {
-    setSession(['Event Coordinator'], 'someone-else')
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
-    )
-    vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['other-user'])])
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="tasks-table"]').exists()).toBe(false)
-    expect(listTasks).toHaveBeenCalledWith('e1')
-  })
-
-  it('hides planning management for a non-owner committee member (management moved to the edit modal)', async () => {
-    setSession(['Student'], 'member-1')
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
-    )
-    vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['member-1'])])
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
-  })
-
-  it('opens the edit modal with the event fields and management forms for a non-owner Admin', async () => {
+  it('opens the edit modal with the event fields for a non-owner Admin', async () => {
     setSession(['Admin'], 'admin-1')
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'owner-else' }),
@@ -328,8 +119,6 @@ describe('EventDetailView', () => {
 
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(true)
-    // The page itself stays read-only.
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
 
     await wrapper.find('[data-testid="edit-event"]').trigger('click')
     await flushPromises()
@@ -338,10 +127,16 @@ describe('EventDetailView', () => {
     expect(
       wrapper.find<HTMLInputElement>('[data-testid="event-title"]').element.value,
     ).toBe('Spring Fair')
-    expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="document-upload-form"]').exists()).toBe(true)
+  })
+
+  it('hides Edit event for a non-owner without manager roles', async () => {
+    setSession(['Event Coordinator'], 'someone-else')
+    vi.mocked(getEvent).mockResolvedValue(
+      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
+    )
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(false)
   })
 
   it('shows Edit event for a non-owner Department Head', async () => {
@@ -352,8 +147,6 @@ describe('EventDetailView', () => {
 
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
   })
 
   it('hides Edit event when the event is frozen at Completed', async () => {
@@ -528,22 +321,13 @@ describe('EventDetailView', () => {
     )
   })
 
-  // Task 21 follow-up: promoting Card titles h3->h2 exposed the h4 group
-  // titles inside CommitteesSection/DocumentsSection as an h2->h4 skip
-  // (axe heading-order) whenever committee/document data renders.
-  it('keeps the outline sequential when committee and document data render (axe heading-order)', async () => {
+  it('keeps the heading outline sequential (axe heading-order)', async () => {
     setSession(['Event Coordinator'])
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'u1' }),
     )
-    vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['u1'])])
-    vi.mocked(listDocuments).mockResolvedValue([makeDocument()])
 
     const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="committee-c1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="documents-group-Proposal"]').exists()).toBe(
-      true,
-    )
     expectSequentialHeadings(wrapper)
   })
 })

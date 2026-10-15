@@ -13,10 +13,6 @@ import {
   type EventRecord,
   type EventStatus,
 } from '../../../api/events.api'
-import CommitteesSection from '../committees/CommitteesSection.vue'
-import TasksSection from '../tasks/TasksSection.vue'
-import ScheduleSection from '../schedule/ScheduleSection.vue'
-import DocumentsSection from '../documents/DocumentsSection.vue'
 import { useAuthStore } from '../../../stores/auth.store'
 
 const route = useRoute()
@@ -235,11 +231,6 @@ onMounted(load)
           @cancel="pendingAction = null"
         />
       </Card>
-
-      <CommitteesSection :event-id="event.id" :status="event.status" :can-manage="false" />
-      <TasksSection :event-id="event.id" :status="event.status" :can-manage="false" />
-      <ScheduleSection :event-id="event.id" :status="event.status" :can-manage="false" />
-      <DocumentsSection :event-id="event.id" :status="event.status" :can-manage="false" />
     </template>
 
     <Modal
@@ -255,12 +246,6 @@ onMounted(load)
           @submitted="onEdited"
           @cancel="editOpen = false"
         />
-        <div class="event-detail__edit-sections">
-          <CommitteesSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
-          <TasksSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
-          <ScheduleSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
-          <DocumentsSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
-        </div>
       </template>
     </Modal>
   </main>
@@ -317,12 +302,6 @@ onMounted(load)
 .event-detail__actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.event-detail__edit-sections {
-  display: flex;
-  flex-direction: column;
   gap: 1rem;
   margin-top: 1rem;
 }

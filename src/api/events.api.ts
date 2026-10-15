@@ -19,9 +19,6 @@ export function canTransition(from: string, to: string): boolean {
   return (EVENT_TRANSITIONS[from] ?? []).includes(to as EventStatus)
 }
 
-// Statuses published on the public site — a Cancelled event is unpublished.
-export const PUBLIC_EVENT_STATUSES = ['Planning', 'Ongoing', 'Completed'] as const
-
 export const EVENT_CAMPUS_SCOPES = ['OnCampus', 'OffCampus'] as const
 
 export const CREATE_EVENT_ROLES = [
@@ -80,15 +77,6 @@ export interface EventInput {
 /** Frozen once Completed/Cancelled — the read-only gate is Planning/Ongoing. */
 export function isEditableStatus(status: string): boolean {
   return status === 'Planning' || status === 'Ongoing'
-}
-
-/** Roster-style sections (committees etc.) open on the publicly visible statuses. */
-export function isRosterStatus(status: string): boolean {
-  return (PUBLIC_EVENT_STATUSES as readonly string[]).includes(status)
-}
-
-export function isPlanningAllowedStatus(status: string): boolean {
-  return status !== 'Cancelled'
 }
 
 export function resolveCoverSrc(coverImageUrl: string | null | undefined): string | null {

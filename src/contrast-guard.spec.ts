@@ -58,7 +58,8 @@ function sfc(relativePath: string): string {
 
 describe('U14/axe contrast guard (grey-placeholder sweep)', () => {
   it('sweeps every .vue file under src/ (guards against an empty sweep)', () => {
-    expect(vueFiles.length).toBeGreaterThanOrEqual(30)
+    // 29 after the tasks/schedule/committees/documents sections were removed.
+    expect(vueFiles.length).toBeGreaterThanOrEqual(29)
   })
 
   it('no .vue file styles text with var(--gray-400) (axe color-contrast)', () => {

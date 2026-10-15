@@ -25,12 +25,6 @@ const campusColumns: DataTableColumn[] = [
   { key: 'count', header: 'Count', field: 'count' },
 ]
 
-const taskColumns: DataTableColumn[] = [
-  { key: 'done', header: 'Done', field: 'done' },
-  { key: 'total', header: 'Total', field: 'total' },
-  { key: 'rate', header: 'Rate', field: 'rate' },
-]
-
 // Pinned to exactly the backend's two scope keys: a missing or unknown key is a type error.
 const CAMPUS_LABELS = {
   OnCampus: 'Inside campus',
@@ -55,12 +49,6 @@ const campusRows = computed(() =>
     count,
   })),
 )
-const taskRows = computed(() => {
-  const tasks = summary.value?.tasks
-  if (!tasks) return []
-  return [{ done: tasks.done, total: tasks.total, rate: `${tasks.completionRate}%` }]
-})
-
 async function load(): Promise<void> {
   loading.value = true
   error.value = null
@@ -109,12 +97,6 @@ onMounted(load)
               {{ summary.events.total }}
             </span>
           </div>
-          <div class="reports__stat">
-            <span class="reports__stat-label">Task completion</span>
-            <span class="reports__stat-value" data-testid="stat-task-rate">
-              {{ summary.tasks.completionRate }}%
-            </span>
-          </div>
         </div>
 
         <div class="reports__tables">
@@ -156,11 +138,6 @@ onMounted(load)
                 <p class="reports__empty">No events yet.</p>
               </template>
             </DataTable>
-          </section>
-
-          <section class="reports__section" data-testid="reports-tasks">
-            <h3 class="reports__section-title">Task completion</h3>
-            <DataTable :columns="taskColumns" :rows="taskRows" data-key="done" />
           </section>
         </div>
       </template>
