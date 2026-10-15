@@ -31,9 +31,15 @@ const taskColumns: DataTableColumn[] = [
   { key: 'rate', header: 'Rate', field: 'rate' },
 ]
 
-const CAMPUS_LABELS: Record<'OnCampus' | 'OffCampus', string> = {
+// Pinned to exactly the backend's two scope keys: a missing or unknown key is a type error.
+const CAMPUS_LABELS = {
   OnCampus: 'Inside campus',
   OffCampus: 'Outside campus',
+} satisfies Record<'OnCampus' | 'OffCampus', string>
+
+function campusLabel(scope: string): string {
+  if (scope === 'OnCampus' || scope === 'OffCampus') return CAMPUS_LABELS[scope]
+  return 'Other location'
 }
 
 function countRows(counts: Record<string, number>): Array<{ label: string; count: number }> {
@@ -45,7 +51,7 @@ const typeRows = computed(() => countRows(summary.value?.events.byType ?? {}))
 const monthRows = computed(() => countRows(summary.value?.events.byMonth ?? {}))
 const campusRows = computed(() =>
   Object.entries(summary.value?.events.byCampusScope ?? {}).map(([scope, count]) => ({
-    label: CAMPUS_LABELS[scope as keyof typeof CAMPUS_LABELS] ?? scope,
+    label: campusLabel(scope),
     count,
   })),
 )
