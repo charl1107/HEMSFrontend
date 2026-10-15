@@ -5,6 +5,20 @@ export const COVER_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'] as c
 
 export const EVENT_STATUSES = ['Planning', 'Ongoing', 'Completed', 'Cancelled'] as const
 
+export type EventStatus = (typeof EVENT_STATUSES)[number]
+
+// Legal lifecycle edges, mirroring the backend EVENT_TRANSITIONS.
+export const EVENT_TRANSITIONS: Readonly<Record<string, readonly EventStatus[]>> = {
+  Planning: ['Ongoing', 'Cancelled'],
+  Ongoing: ['Completed', 'Cancelled'],
+  Completed: [],
+  Cancelled: ['Planning'],
+}
+
+export function canTransition(from: string, to: string): boolean {
+  return (EVENT_TRANSITIONS[from] ?? []).includes(to as EventStatus)
+}
+
 // Statuses published on the public site — a Cancelled event is unpublished.
 export const PUBLIC_EVENT_STATUSES = ['Planning', 'Ongoing', 'Completed'] as const
 
@@ -40,7 +54,6 @@ export interface EventRecord {
   description: string | null
   eventDate: string
   venue: string
-  department?: string | null
   campusScope?: (typeof EVENT_CAMPUS_SCOPES)[number]
   status: string
   coverImageUrl: string | null
@@ -60,7 +73,6 @@ export interface EventInput {
   description?: string
   eventDate: string
   venue: string
-  department?: string
   campusScope?: (typeof EVENT_CAMPUS_SCOPES)[number]
   eventTypeId?: string
 }
@@ -147,8 +159,9 @@ export async function deleteEvent(id: string): Promise<void> {
   await http.delete(`/events/${id}`)
 }
 
-/** Lifecycle targets accepted by `POST /events/:id/advance` (F17). */
-export type EventAdvanceTarget = 'Ongoing' | 'Completed'
+/** Lifecycle targets accepted by `POST /events/:id/advance` (F17); the backend
+ *  validates legality against EVENT_TRANSITIONS. */
+export type EventAdvanceTarget = EventStatus
 
 export async function advanceEvent(
   id: string,

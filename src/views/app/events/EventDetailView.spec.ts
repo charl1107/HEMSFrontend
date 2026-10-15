@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EventDetailView from './EventDetailView.vue'
-import { advanceEvent, getEvent, type EventRecord } from '../../../api/events.api'
+import { advanceEvent, getEvent, updateEvent, type EventRecord } from '../../../api/events.api'
 import { useAuthStore } from '../../../stores/auth.store'
 import { listCommittees, type CommitteeRecord } from '../../../api/committees.api'
 import { listTasks } from '../../../api/tasks.api'
@@ -22,6 +22,7 @@ vi.mock('../../../api/events.api', async (importOriginal) => {
     ...actual,
     getEvent: vi.fn(),
     advanceEvent: vi.fn(),
+    updateEvent: vi.fn(),
   }
 })
 
@@ -188,7 +189,8 @@ async function mountDetail(router: Router): Promise<VueWrapper> {
   await router.push({ name: 'event-detail', params: { id: 'e1' } })
   await router.isReady()
   const wrapper = mount(EventDetailView, {
-    global: { plugins: [router] },
+    // The edit modal teleports to body; the stub keeps it inside the wrapper.
+    global: { plugins: [router], stubs: { teleport: true } },
   })
   await flushPromises()
   return wrapper
@@ -219,7 +221,7 @@ describe('EventDetailView', () => {
     expect(listCommittees).not.toHaveBeenCalled()
   })
 
-  it('shows the committee entry section on a Planning event', async () => {
+  it('shows the committee list on a Planning event but no management forms on the page', async () => {
     setSession(['Event Coordinator'])
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'u1' }),
@@ -228,7 +230,7 @@ describe('EventDetailView', () => {
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="committees-section"]').exists()).toBe(true)
     expect(listCommittees).toHaveBeenCalledWith('e1')
-    expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(false)
   })
 
   it('hides committee management for a non-owner without manager roles', async () => {
@@ -241,7 +243,7 @@ describe('EventDetailView', () => {
     expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(false)
   })
 
-  it('shows task and schedule sections on a Planning event', async () => {
+  it('shows task, schedule and document lists on a Planning event with no management forms on the page', async () => {
     setSession(['Event Coordinator'])
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'u1' }),
@@ -254,10 +256,10 @@ describe('EventDetailView', () => {
     expect(listTasks).toHaveBeenCalledWith('e1')
     expect(listSchedule).toHaveBeenCalledWith('e1')
     expect(listDocuments).toHaveBeenCalledWith('e1')
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="document-upload-form"]').exists()).toBe(
-      true,
+      false,
     )
   })
 
@@ -291,7 +293,7 @@ describe('EventDetailView', () => {
     expect(listSchedule).toHaveBeenCalledWith('e1')
   })
 
-  it('hides planning management for a non-owner Event Coordinator without membership', async () => {
+  it('hides planning management and the Edit button for a non-owner Event Coordinator without membership', async () => {
     setSession(['Event Coordinator'], 'someone-else')
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'owner-else' }),
@@ -299,13 +301,14 @@ describe('EventDetailView', () => {
     vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['other-user'])])
 
     const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="tasks-table"]').exists()).toBe(false)
     expect(listTasks).toHaveBeenCalledWith('e1')
   })
 
-  it('shows planning management for a non-owner committee member', async () => {
+  it('hides planning management for a non-owner committee member (management moved to the edit modal)', async () => {
     setSession(['Student'], 'member-1')
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'owner-else' }),
@@ -313,30 +316,82 @@ describe('EventDetailView', () => {
     vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['member-1'])])
 
     const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
   })
 
-  it('shows planning management for a non-owner Admin', async () => {
+  it('opens the edit modal with the event fields and management forms for a non-owner Admin', async () => {
     setSession(['Admin'], 'admin-1')
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'owner-else' }),
     )
 
     const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(true)
+    // The page itself stays read-only.
+    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid="edit-event"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="event-form"]').exists()).toBe(true)
+    expect(
+      wrapper.find<HTMLInputElement>('[data-testid="event-title"]').element.value,
+    ).toBe('Spring Fair')
+    expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="document-upload-form"]').exists()).toBe(true)
   })
 
-  it('shows planning management for a non-owner Department Head', async () => {
+  it('shows Edit event for a non-owner Department Head', async () => {
     setSession(['Department Head'], 'head-1')
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'owner-else' }),
     )
 
     const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="task-create-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
+  })
+
+  it('hides Edit event when the event is frozen at Completed', async () => {
+    setSession(['Admin'], 'admin-1')
+    vi.mocked(getEvent).mockResolvedValue(
+      makeEvent({ status: 'Completed', createdById: 'owner-else' }),
+    )
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="edit-event"]').exists()).toBe(false)
+  })
+
+  it('saves field changes from the edit modal via updateEvent and closes it', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Planning' }))
+    vi.mocked(updateEvent).mockResolvedValue({
+      ...makeEvent({ title: 'Renamed Fair' }),
+      conflictWarning: null,
+    })
+
+    const wrapper = await mountDetail(router)
+    await wrapper.find('[data-testid="edit-event"]').trigger('click')
+    await flushPromises()
+
+    await wrapper
+      .find<HTMLInputElement>('[data-testid="event-title"]')
+      .setValue('Renamed Fair')
+    await wrapper.find('[data-testid="event-form-fields"]').trigger('submit')
+    await flushPromises()
+
+    expect(updateEvent).toHaveBeenCalledWith(
+      'e1',
+      expect.objectContaining({ title: 'Renamed Fair' }),
+    )
+    expect(wrapper.find('[data-testid="event-detail-notice"]').text()).toContain(
+      'Event updated.',
+    )
+    expect(wrapper.find('[data-testid="event-form"]').exists()).toBe(false)
   })
 
   it('shows Mark ongoing for the owner on a Planning event', async () => {
@@ -357,7 +412,7 @@ describe('EventDetailView', () => {
     expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(false)
   })
 
-  it('hides Mark ongoing for a non-owner even while Planning', async () => {
+  it('hides lifecycle buttons for a non-owner even while Planning', async () => {
     setSession(['Event Coordinator'], 'someone-else')
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ status: 'Planning', createdById: 'owner-else' }),
@@ -365,6 +420,8 @@ describe('EventDetailView', () => {
 
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cancel-event"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="resume-event"]').exists()).toBe(false)
   })
 
   it('shows Mark completed for the owner while the event is Ongoing', async () => {
@@ -374,6 +431,79 @@ describe('EventDetailView', () => {
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
+  })
+
+  it('offers Cancel event to the owner on a Planning event', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Planning' }))
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="cancel-event"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="resume-event"]').exists()).toBe(false)
+  })
+
+  it('offers Resume event to the owner on a Cancelled event', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Cancelled' }))
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="resume-event"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cancel-event"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(false)
+  })
+
+  it('cancels through the confirm dialog via advanceEvent with Cancelled in the copy', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Planning' }))
+    vi.mocked(advanceEvent).mockResolvedValue(makeEvent({ status: 'Cancelled' }))
+
+    const wrapper = await mountDetail(router)
+    await wrapper.find('[data-testid="cancel-event"]').trigger('click')
+    await flushPromises()
+
+    const dialog = wrapper.find('[data-testid="confirm-dialog"]')
+    expect(dialog.exists()).toBe(true)
+    expect(dialog.text()).toContain('Cancelled')
+    expect(advanceEvent).not.toHaveBeenCalled()
+
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(advanceEvent).toHaveBeenCalledWith('e1', 'Cancelled')
+    expect(wrapper.find('[data-testid="event-detail-notice"]').text()).toContain(
+      'Event cancelled.',
+    )
+  })
+
+  it('resumes a Cancelled event through the confirm dialog via advanceEvent', async () => {
+    setSession(['Event Coordinator'])
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Cancelled' }))
+    vi.mocked(advanceEvent).mockResolvedValue(makeEvent({ status: 'Planning' }))
+
+    const wrapper = await mountDetail(router)
+    await wrapper.find('[data-testid="resume-event"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="confirm-dialog"]').text()).toContain('Planning')
+    await wrapper.find('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(advanceEvent).toHaveBeenCalledWith('e1', 'Planning')
+    expect(wrapper.find('[data-testid="event-detail-notice"]').text()).toContain(
+      'Event resumed.',
+    )
+  })
+
+  it('offers lifecycle buttons to a non-owner Admin (EVENT_EDIT_ROLES)', async () => {
+    setSession(['Admin'], 'admin-1')
+    vi.mocked(getEvent).mockResolvedValue(
+      makeEvent({ status: 'Ongoing', createdById: 'owner-else' }),
+    )
+
+    const wrapper = await mountDetail(router)
+    expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cancel-event"]').exists()).toBe(true)
   })
 
   it('advances Planning→Ongoing through the confirm dialog via advanceEvent', async () => {

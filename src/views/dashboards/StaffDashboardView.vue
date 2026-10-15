@@ -102,8 +102,8 @@ onMounted(load)
     </section>
 
     <Card v-if="canViewEvents" title="Upcoming events">
-      <p v-if="loading" data-testid="attendance-events-loading">Loading events…</p>
-      <p v-else-if="error" class="dashboard__error" role="alert" data-testid="attendance-events-error">
+      <p v-if="loading" data-testid="events-loading">Loading events…</p>
+      <p v-else-if="error" class="dashboard__error" role="alert" data-testid="events-error">
         {{ error }}
       </p>
       <div
@@ -136,7 +136,6 @@ onMounted(load)
           :title="event.title"
           :event-date="event.eventDate"
           :venue="event.venue"
-          :department="event.department"
           :campus-scope="event.campusScope"
           :status="event.status"
           :description="event.description"
@@ -415,28 +414,6 @@ onMounted(load)
   gap: 0.75rem;
 }
 
-.dashboard__attendance {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.dashboard__attendance-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.8rem 0.1rem;
-  border-bottom: 1px solid var(--rose-line);
-}
-
-.dashboard__attendance-row:last-child {
-  border-bottom: none;
-}
-
 .dashboard__all-events {
   margin-top: 0.75rem;
 }
@@ -445,18 +422,6 @@ onMounted(load)
   color: var(--brand-text);
   font-weight: 700;
   text-decoration: none;
-}
-
-.dashboard__attendance-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  min-width: 0;
-}
-
-.dashboard__attendance-title {
-  color: var(--ink);
-  font-weight: 600;
 }
 
 .dashboard__event-preview {

@@ -252,6 +252,21 @@ describe('EventFormView', () => {
     ).toBe(false)
   })
 
+  it('renders no Department field', async () => {
+    const wrapper = await mountOverlay(router)
+
+    expect(wrapper.find('[data-testid="event-department"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Department')
+  })
+
+  it('styles the campus location select with the app dark input class', async () => {
+    const wrapper = await mountOverlay(router)
+
+    expect(
+      wrapper.find('[data-testid="event-campus-scope"]').classes(),
+    ).toContain('event-form__input')
+  })
+
   it('remove cover asks for confirmation before calling removeCover', async () => {
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({ id: 'e1', status: 'Planning', coverImageUrl: '/covers/x.jpg' }),

@@ -23,8 +23,9 @@ import {
   type FieldErrors,
 } from './event-form'
 
-const props = withDefaults(defineProps<{ overlay?: boolean }>(), {
+const props = withDefaults(defineProps<{ overlay?: boolean; editId?: string }>(), {
   overlay: false,
+  editId: undefined,
 })
 
 const emit = defineEmits<{
@@ -41,9 +42,14 @@ const emit = defineEmits<{
 const route = useRoute()
 
 const isEdit = computed(
-  () => !props.overlay && route.name === 'event-edit',
+  () =>
+    Boolean(props.editId) ||
+    (!props.overlay && route.name === 'event-edit'),
 )
-const eventId = computed(() => (isEdit.value ? String(route.params.id) : null))
+const eventId = computed(() =>
+  props.editId ??
+  (!props.overlay && route.name === 'event-edit' ? String(route.params.id) : null),
+)
 
 const rootTag = computed(() => (props.overlay ? 'div' : 'main'))
 const frameComponent = computed(() => (props.overlay ? 'div' : Card))
@@ -53,7 +59,6 @@ const values = ref<EventFormValues>({
   description: '',
   eventDate: '',
   venue: '',
-  department: '',
   campusScope: 'OnCampus',
 })
 const errors = ref<FieldErrors>({})
@@ -109,7 +114,6 @@ async function loadExisting(): Promise<void> {
       description: event.description ?? '',
       eventDate: event.eventDate.slice(0, 10),
       venue: event.venue,
-      department: event.department ?? '',
       campusScope: event.campusScope ?? 'OnCampus',
     }
     if (!isEditableStatus(event.status)) {
@@ -243,7 +247,7 @@ onMounted(loadExisting)
     <component :is="frameComponent" class="event-form__frame">
       <p v-if="loading">Loading…</p>
       <template v-else>
-        <ConflictWarningBanner v-if="!overlay && conflictWarning" :message="conflictWarning" />
+        <ConflictWarningBanner v-if="conflictWarning" :message="conflictWarning" />
         <p v-if="formError" class="event-form__error" role="alert" data-testid="event-form-error">
           {{ formError }}
         </p>
@@ -262,6 +266,7 @@ onMounted(loadExisting)
             <input
               v-model="values.title"
               type="text"
+              class="event-form__input"
               data-testid="event-title"
               :aria-invalid="Boolean(errors.title)"
               :disabled="!canEditExisting || saving || coverUploading"
@@ -276,6 +281,7 @@ onMounted(loadExisting)
             <input
               v-model="values.eventDate"
               type="date"
+              class="event-form__input"
               data-testid="event-date"
               :aria-invalid="Boolean(errors.eventDate)"
               :disabled="!canEditExisting || saving || coverUploading"
@@ -290,6 +296,7 @@ onMounted(loadExisting)
             <input
               v-model="values.venue"
               type="text"
+              class="event-form__input"
               data-testid="event-venue"
               :aria-invalid="Boolean(errors.venue)"
               :disabled="!canEditExisting || saving || coverUploading"
@@ -300,20 +307,10 @@ onMounted(loadExisting)
           </label>
 
           <label class="event-form__field">
-            <span>Department</span>
-            <input
-              v-model="values.department"
-              type="text"
-              placeholder="e.g. Hospitality Management"
-              data-testid="event-department"
-              :disabled="!canEditExisting || saving || coverUploading"
-            />
-          </label>
-
-          <label class="event-form__field">
             <span>Campus location</span>
             <select
               v-model="values.campusScope"
+              class="event-form__input"
               data-testid="event-campus-scope"
               :disabled="!canEditExisting || saving || coverUploading"
             >
@@ -328,6 +325,7 @@ onMounted(loadExisting)
             <textarea
               v-model="values.description"
               rows="4"
+              class="event-form__input"
               data-testid="event-description"
               :disabled="!canEditExisting || saving || coverUploading"
             />
@@ -386,9 +384,9 @@ onMounted(loadExisting)
               :label="
                 saving
                   ? 'Saving…'
-                  : overlay
-                    ? 'Create event'
-                    : 'Save changes'
+                  : isEdit
+                    ? 'Save changes'
+                    : 'Create event'
               "
               data-testid="event-submit"
               :disabled="!canEditExisting || saving || coverUploading"
@@ -441,8 +439,7 @@ onMounted(loadExisting)
   flex-direction: column;
   gap: 0.3rem;
 }
-.event-form__field input,
-.event-form__field textarea {
+.event-form__input {
   font: inherit;
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--line);
@@ -450,7 +447,7 @@ onMounted(loadExisting)
   color: var(--text-strong);
   background: var(--surface);
 }
-.event-form__field input[aria-invalid='true'] {
+.event-form__input[aria-invalid='true'] {
   border-color: var(--danger-text);
 }
 .event-form__field-error,

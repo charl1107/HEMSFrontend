@@ -16,6 +16,16 @@ vi.mock('../api/auth.api', () => ({
   refresh: vi.fn(),
 }))
 
+// guard.spec mounts the real StudentDashboardView, which now fetches the
+// public upcoming-events feed on mount — keep it off the real network.
+vi.mock('../api/events.api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/events.api')>()
+  return {
+    ...actual,
+    listPublicEvents: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+  }
+})
+
 const stub = { template: '<div />' }
 
 function withStubs(records: RouteRecordRaw[]): RouteRecordRaw[] {

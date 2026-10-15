@@ -5,7 +5,6 @@ export interface EventFormValues {
   description: string
   eventDate: string
   venue: string
-  department: string
   campusScope: 'OnCampus' | 'OffCampus'
 }
 
@@ -69,7 +68,6 @@ export function toEventPayload(values: EventFormValues): {
   description: string
   eventDate: string
   venue: string
-  department: string
   campusScope: 'OnCampus' | 'OffCampus'
 } {
   return {
@@ -77,7 +75,6 @@ export function toEventPayload(values: EventFormValues): {
     description: values.description.trim(),
     eventDate: values.eventDate,
     venue: values.venue.trim(),
-    department: values.department.trim(),
     campusScope: values.campusScope,
   }
 }

@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, Card, ConfirmDialog, EventCard } from '@/components/ui'
+import { Button, Card, ConfirmDialog, EventCard, Modal } from '@/components/ui'
+import EventFormView from './EventFormView.vue'
 import {
   advanceEvent,
+  canTransition,
   EVENT_EDIT_ROLES,
   getEvent,
   isEditableStatus,
-  isRosterStatus,
   resolveCoverSrc,
-  type EventAdvanceTarget,
   type EventRecord,
+  type EventStatus,
 } from '../../../api/events.api'
-import { COMMITTEE_MANAGER_ROLES, listCommittees } from '../../../api/committees.api'
 import CommitteesSection from '../committees/CommitteesSection.vue'
 import TasksSection from '../tasks/TasksSection.vue'
 import ScheduleSection from '../schedule/ScheduleSection.vue'
@@ -36,12 +36,6 @@ const isOwner = computed(() =>
   Boolean(event.value && auth.user && event.value.createdById === auth.user.id),
 )
 
-const isCommitteeManagerRole = computed(() =>
-  COMMITTEE_MANAGER_ROLES.some((role) => auth.roles.includes(role)),
-)
-
-const isCommitteeMember = ref(false)
-
 const canEdit = computed(() =>
   Boolean(
     (isEditRole.value || isOwner.value) &&
@@ -50,35 +44,65 @@ const canEdit = computed(() =>
   ),
 )
 
-const canManageCommittees = computed(
-  () => isOwner.value || isCommitteeManagerRole.value,
-)
+interface LifecycleAction {
+  to: EventStatus
+  label: string
+  testid: string
+  message: string
+  notice: string
+  destructive: boolean
+}
 
-const canManagePlanning = computed(
-  () => isOwner.value || isCommitteeMember.value || isCommitteeManagerRole.value,
-)
+/** Shown when canTransition(current, action.to) holds; copy names the target status. */
+const LIFECYCLE_ACTIONS: LifecycleAction[] = [
+  {
+    to: 'Ongoing',
+    label: 'Mark ongoing',
+    testid: 'mark-ongoing',
+    message: 'Mark this event as Ongoing?',
+    notice: 'Event marked ongoing.',
+    destructive: false,
+  },
+  {
+    to: 'Completed',
+    label: 'Mark completed',
+    testid: 'mark-completed',
+    message: 'Mark this event as Completed?',
+    notice: 'Event marked completed.',
+    destructive: false,
+  },
+  {
+    to: 'Cancelled',
+    label: 'Cancel event',
+    testid: 'cancel-event',
+    message: 'Cancel this event? Its status will become Cancelled.',
+    notice: 'Event cancelled.',
+    destructive: true,
+  },
+  {
+    to: 'Planning',
+    label: 'Resume event',
+    testid: 'resume-event',
+    message: 'Resume this event? Its status will return to Planning.',
+    notice: 'Event resumed.',
+    destructive: false,
+  },
+]
 
-/** Lifecycle advance (POST /events/:id/advance) — owner-only in this view. */
-const canAdvanceToOngoing = computed(
-  () => isOwner.value && event.value?.status === 'Planning',
-)
+const canManageLifecycle = computed(() => isOwner.value || isEditRole.value)
 
-const canAdvanceToCompleted = computed(
-  () => isOwner.value && event.value?.status === 'Ongoing',
-)
+const lifecycleActions = computed(() => {
+  const current = event.value
+  if (!current || !canManageLifecycle.value) return []
+  return LIFECYCLE_ACTIONS.filter((action) =>
+    canTransition(current.status, action.to),
+  )
+})
 
 const advancing = ref(false)
-const pendingAdvance = ref<EventAdvanceTarget | null>(null)
+const pendingAction = ref<LifecycleAction | null>(null)
 
-const pendingAdvanceTitle = computed(() =>
-  pendingAdvance.value === 'Completed' ? 'Mark completed' : 'Mark ongoing',
-)
-
-const pendingAdvanceMessage = computed(() =>
-  pendingAdvance.value === 'Completed'
-    ? 'Mark this event as completed?'
-    : 'Mark this event as ongoing?',
-)
+const editOpen = ref(false)
 
 function formatDate(value: string): string {
   const date = new Date(value)
@@ -91,29 +115,11 @@ function formatDate(value: string): string {
   })
 }
 
-async function resolveCommitteeMembership(): Promise<void> {
-  isCommitteeMember.value = false
-  const current = event.value
-  if (!current || !auth.user) return
-  if (current.createdById === auth.user.id) return
-  if (isCommitteeManagerRole.value) return
-  if (!isRosterStatus(current.status)) return
-  try {
-    const committees = await listCommittees(current.id)
-    isCommitteeMember.value = committees.some((committee) =>
-      committee.members.some((member) => member.userId === auth.user!.id),
-    )
-  } catch {
-    isCommitteeMember.value = false
-  }
-}
-
 async function load(): Promise<void> {
   loading.value = true
   error.value = null
   try {
     event.value = await getEvent(eventId.value)
-    await resolveCommitteeMembership()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load event'
   } finally {
@@ -121,22 +127,28 @@ async function load(): Promise<void> {
   }
 }
 
-async function onAdvanceConfirm(): Promise<void> {
-  const to = pendingAdvance.value
-  if (!to || !event.value) return
+async function onLifecycleConfirm(): Promise<void> {
+  const action = pendingAction.value
+  const current = event.value
+  if (!action || !current) return
   advancing.value = true
   error.value = null
   notice.value = null
   try {
-    event.value = await advanceEvent(event.value.id, to)
-    notice.value =
-      to === 'Ongoing' ? 'Event marked ongoing.' : 'Event marked completed.'
+    event.value = await advanceEvent(current.id, action.to)
+    notice.value = action.notice
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to advance event'
+    error.value = err instanceof Error ? err.message : 'Failed to update event status'
   } finally {
     advancing.value = false
-    pendingAdvance.value = null
+    pendingAction.value = null
   }
+}
+
+function onEdited(payload: { event: EventRecord }): void {
+  event.value = payload.event
+  notice.value = 'Event updated.'
+  editOpen.value = false
 }
 
 onMounted(load)
@@ -175,7 +187,6 @@ onMounted(load)
           :title="event.title"
           :event-date="event.eventDate"
           :venue="event.venue"
-          :department="event.department"
           :campus-scope="event.campusScope"
           :status="event.status"
           :cover-src="resolveCoverSrc(event.coverImageUrl)"
@@ -198,58 +209,60 @@ onMounted(load)
 
         <div class="event-detail__actions">
           <Button
-            v-if="canAdvanceToOngoing"
-            label="Mark ongoing"
-            data-testid="mark-ongoing"
+            v-for="action in lifecycleActions"
+            :key="action.to"
+            :label="action.label"
+            :severity="action.destructive ? 'danger' : 'primary'"
+            :data-testid="action.testid"
             :disabled="advancing"
-            @click="pendingAdvance = 'Ongoing'"
+            @click="pendingAction = action"
           />
           <Button
-            v-if="canAdvanceToCompleted"
-            label="Mark completed"
-            data-testid="mark-completed"
-            :disabled="advancing"
-            @click="pendingAdvance = 'Completed'"
-          />
-          <RouterLink
             v-if="canEdit"
-            :to="{ name: 'event-edit', params: { id: event.id } }"
-            data-testid="edit-event-link"
-          >
-            Edit event
-          </RouterLink>
+            label="Edit event"
+            data-testid="edit-event"
+            :disabled="advancing"
+            @click="editOpen = true"
+          />
         </div>
         <ConfirmDialog
-          :open="pendingAdvance !== null"
-          :title="pendingAdvanceTitle"
-          :message="pendingAdvanceMessage"
-          :confirm-label="pendingAdvanceTitle"
-          @confirm="onAdvanceConfirm"
-          @cancel="pendingAdvance = null"
+          :open="pendingAction !== null"
+          :title="pendingAction?.label ?? ''"
+          :message="pendingAction?.message ?? ''"
+          :confirm-label="pendingAction?.label ?? 'Confirm'"
+          :destructive="pendingAction?.destructive ?? false"
+          @confirm="onLifecycleConfirm"
+          @cancel="pendingAction = null"
         />
       </Card>
 
-      <CommitteesSection
-        :event-id="event.id"
-        :status="event.status"
-        :can-manage="canManageCommittees"
-      />
-      <TasksSection
-        :event-id="event.id"
-        :status="event.status"
-        :can-manage="canManagePlanning"
-      />
-      <ScheduleSection
-        :event-id="event.id"
-        :status="event.status"
-        :can-manage="canManagePlanning"
-      />
-      <DocumentsSection
-        :event-id="event.id"
-        :status="event.status"
-        :can-manage="canManagePlanning"
-      />
+      <CommitteesSection :event-id="event.id" :status="event.status" :can-manage="false" />
+      <TasksSection :event-id="event.id" :status="event.status" :can-manage="false" />
+      <ScheduleSection :event-id="event.id" :status="event.status" :can-manage="false" />
+      <DocumentsSection :event-id="event.id" :status="event.status" :can-manage="false" />
     </template>
+
+    <Modal
+      :open="editOpen"
+      title="Edit event"
+      max-width="46rem"
+      @close="editOpen = false"
+    >
+      <template v-if="event">
+        <EventFormView
+          overlay
+          :edit-id="event.id"
+          @submitted="onEdited"
+          @cancel="editOpen = false"
+        />
+        <div class="event-detail__edit-sections">
+          <CommitteesSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
+          <TasksSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
+          <ScheduleSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
+          <DocumentsSection :event-id="event.id" :status="event.status" :can-manage="canEdit" />
+        </div>
+      </template>
+    </Modal>
   </main>
 </template>
 
@@ -307,8 +320,10 @@ onMounted(load)
   gap: 1rem;
   margin-top: 1rem;
 }
-.event-detail__actions a {
-  color: var(--accent-text);
-  font-weight: 500;
+.event-detail__edit-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 </style>

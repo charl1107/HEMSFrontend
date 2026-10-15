@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
+  Button,
   EventCard,
+  Modal,
 } from '@/components/ui'
+import EventFormView from './EventFormView.vue'
 import { useAuthStore } from '../../../stores/auth.store'
 import {
+  CREATE_EVENT_ROLES,
   EVENT_CAMPUS_SCOPES,
   EVENT_READ_ROLES,
   EVENT_STATUSES,
@@ -15,6 +20,7 @@ import {
 
 const PAGE_SIZE = 50
 
+const router = useRouter()
 const auth = useAuthStore()
 const events = ref<EventRecord[]>([])
 const total = ref(0)
@@ -30,6 +36,17 @@ const typeNames = ref<string[]>([])
 const canRead = computed(() =>
   EVENT_READ_ROLES.some((role) => auth.roles.includes(role)),
 )
+
+const canCreate = computed(() =>
+  CREATE_EVENT_ROLES.some((role) => auth.roles.includes(role)),
+)
+
+const showCreate = ref(false)
+
+function onCreated(payload: { event: EventRecord }): void {
+  showCreate.value = false
+  void router.push({ name: 'event-detail', params: { id: payload.event.id } })
+}
 
 const filteredEvents = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
@@ -99,6 +116,12 @@ onMounted(() => {
   <main class="events-list" data-testid="events-list">
     <div class="events-list__header">
       <h1>Events</h1>
+      <Button
+        v-if="canCreate"
+        label="New event"
+        data-testid="new-event-button"
+        @click="showCreate = true"
+      />
     </div>
     <section class="events-list__workspace">
       <p v-if="!canRead" class="events-list__denied" data-testid="events-denied">
@@ -157,7 +180,6 @@ onMounted(() => {
               :description="descriptionExcerpt(event.description)"
               :event-date="event.eventDate"
               :venue="event.venue"
-              :department="event.department"
               :campus-scope="event.campusScope"
               :status="event.status"
               :cover-src="resolveCoverSrc(event.coverImageUrl)"
@@ -188,6 +210,18 @@ onMounted(() => {
         </template>
       </template>
     </section>
+
+    <Modal
+      :open="showCreate"
+      title="New event"
+      @close="showCreate = false"
+    >
+      <EventFormView
+        overlay
+        @submitted="onCreated"
+        @cancel="showCreate = false"
+      />
+    </Modal>
   </main>
 </template>
 

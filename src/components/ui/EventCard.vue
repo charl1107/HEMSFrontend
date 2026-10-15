@@ -5,7 +5,6 @@ const props = defineProps<{
   title: string
   eventDate?: string | null
   venue?: string | null
-  department?: string | null
   campusScope?: 'OnCampus' | 'OffCampus' | null
   status?: string | null
   description?: string | null
@@ -57,7 +56,6 @@ function currentCover(): string | undefined {
       <p v-if="venue" class="ui-event-card__venue">
         {{ venue }}<span v-if="campusScope"> · {{ campusScope === 'OnCampus' ? 'Inside campus' : 'Outside campus' }}</span>
       </p>
-      <p v-if="department" class="ui-event-card__department">{{ department }}</p>
       <div class="ui-event-card__actions">
         <slot />
       </div>
@@ -134,12 +132,6 @@ function currentCover(): string | undefined {
   line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-}
-.ui-event-card__department {
-  margin: 0;
-  color: var(--brand-text);
-  font-size: 0.82rem;
-  font-weight: 700;
 }
 .ui-event-card__actions {
   margin-top: 0.5rem;

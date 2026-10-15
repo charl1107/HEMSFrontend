@@ -6,13 +6,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EventsListView from './EventsListView.vue'
 import { useAuthStore } from '../../../stores/auth.store'
 import { expectSequentialHeadings } from '../../../test-utils/headings'
-import { listEvents, type EventRecord } from '../../../api/events.api'
+import { listEvents, createEvent, type EventRecord } from '../../../api/events.api'
 
 vi.mock('../../../api/events.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/events.api')>()
   return {
     ...actual,
     listEvents: vi.fn(),
+    createEvent: vi.fn(),
   }
 })
 
@@ -23,7 +24,7 @@ function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
     description: null,
     eventDate: '2026-05-01T00:00:00.000Z',
     venue: 'Main Hall',
-    status: 'Draft',
+    status: 'Planning',
     coverImageUrl: null,
     eventTypeId: null,
     eventType: { id: 't1', name: 'Workshop' },
@@ -75,9 +76,8 @@ async function mountList(router: Router): Promise<VueWrapper> {
   await router.push({ name: 'events-list' })
   await router.isReady()
   const wrapper = mount(EventsListView, {
-    global: {
-      plugins: [router],
-    },
+    // The create modal teleports to body; the stub keeps it inside the wrapper.
+    global: { plugins: [router], stubs: { teleport: true } },
   })
   await flushPromises()
   return wrapper
@@ -91,34 +91,77 @@ describe('EventsListView', () => {
     vi.clearAllMocks()
     vi.mocked(listEvents).mockResolvedValue({
       items: [
-        makeEvent({ id: 'e1', status: 'Draft' }),
-        makeEvent({ id: 'e2', status: 'Approved' }),
+        makeEvent({ id: 'e1', status: 'Planning' }),
+        makeEvent({ id: 'e2', status: 'Ongoing' }),
       ],
       total: 2,
     })
     router = await createTestRouter()
   })
 
-  it('is browse-only for Department Heads', async () => {
+  it('offers New event to Department Heads with no per-row edit/delete', async () => {
     setRoles(['Department Head'])
     const wrapper = await mountList(router)
 
     expect(wrapper.find('[data-testid="events-table"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="view-event-e1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="create-event-link"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="new-event-button"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="edit-event-e1"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="delete-event-e1"]').exists()).toBe(false)
   })
 
-  it('hides create/edit/delete for other submit roles too', async () => {
+  it('renders a New event button for a user holding Event Coordinator', async () => {
     setRoles(['Event Coordinator'])
     const wrapper = await mountList(router)
 
+    expect(wrapper.find('[data-testid="new-event-button"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="view-event-e2"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="create-event-link"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="edit-event-e1"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="delete-event-e1"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="edit-event-e2"]').exists()).toBe(false)
+  })
+
+  it('does not render New event for a Student', async () => {
+    setRoles(['Student'])
+    const wrapper = await mountList(router)
+
+    expect(wrapper.find('[data-testid="new-event-button"]').exists()).toBe(false)
+  })
+
+  it('offers exactly All plus the four statuses in the status filter', async () => {
+    setRoles(['Department Head'])
+    const wrapper = await mountList(router)
+
+    const options = wrapper.findAll('[data-testid="status-filter"] option')
+    expect(options.map((option) => option.text())).toEqual([
+      'All statuses',
+      'Planning',
+      'Ongoing',
+      'Completed',
+      'Cancelled',
+    ])
+  })
+
+  it('opens the create modal and navigates to the new event detail on success', async () => {
+    setRoles(['Event Coordinator'])
+    vi.mocked(createEvent).mockResolvedValue({
+      ...makeEvent({ id: 'new-1', title: 'New Fair', status: 'Planning' }),
+      conflictWarning: null,
+    })
+    const wrapper = await mountList(router)
+
+    await wrapper.find('[data-testid="new-event-button"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.find('[data-testid="event-title"]').setValue('New Fair')
+    await wrapper.find('[data-testid="event-date"]').setValue('2026-06-01')
+    await wrapper.find('[data-testid="event-venue"]').setValue('Gym')
+    await wrapper.find('[data-testid="event-form-fields"]').trigger('submit')
+    await flushPromises()
+
+    expect(createEvent).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.name).toBe('event-detail')
+    expect(router.currentRoute.value.params.id).toBe('new-1')
   })
 
   it('refetches from the server when the status filter changes', async () => {
@@ -151,11 +194,11 @@ describe('EventsListView', () => {
     setRoles(['Department Head'])
     vi.mocked(listEvents)
       .mockResolvedValueOnce({
-        items: [makeEvent({ id: 'e1', status: 'Draft' })],
+        items: [makeEvent({ id: 'e1', status: 'Planning' })],
         total: 2,
       })
       .mockResolvedValueOnce({
-        items: [makeEvent({ id: 'e2', status: 'Approved' })],
+        items: [makeEvent({ id: 'e2', status: 'Ongoing' })],
         total: 2,
       })
     const wrapper = await mountList(router)

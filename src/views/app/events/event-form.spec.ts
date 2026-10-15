@@ -12,7 +12,6 @@ const valid: EventFormValues = {
   description: ' Campus fair',
   eventDate: '2026-05-01',
   venue: ' Main Hall ',
-  department: ' Hospitality Management ',
   campusScope: 'OffCampus',
 }
 
@@ -28,7 +27,6 @@ describe('validateEventForm', () => {
       description: '',
       eventDate: '',
       venue: '',
-      department: '',
       campusScope: 'OnCampus',
     })
     expect(errors.title).toBeTruthy()
@@ -72,7 +70,6 @@ describe('toEventPayload', () => {
       description: 'Campus fair',
       eventDate: '2026-05-01',
       venue: 'Main Hall',
-      department: 'Hospitality Management',
       campusScope: 'OffCampus',
     })
   })
