@@ -4,7 +4,7 @@ Hospitality Management event management system. This manual covers everything a 
 account can do: creating and managing events, moving them through their lifecycle,
 reading reports, and managing user accounts.
 
-Screenshots were taken from a working local installation.
+Screenshots were taken from the live portal at <https://hmportal.vercel.app>.
 
 ---
 

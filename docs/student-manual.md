@@ -4,7 +4,7 @@ The HM Portal is where the School of Hospitality Management posts its events —
 career fairs, showcases, briefings and activities. This manual shows you what you can do
 as a student account.
 
-Screenshots were taken from a working local installation.
+Screenshots were taken from the live portal at <https://hmportal.vercel.app>.
 
 ---
 
