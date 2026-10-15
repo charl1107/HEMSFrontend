@@ -91,13 +91,17 @@ describe('CommitteesSection', () => {
     vi.mocked(tryListUsers).mockResolvedValue(null)
   })
 
-  it('shows a status gate and skips loading before approval', async () => {
+  it('shows a status gate and skips loading when the event status closes the roster', async () => {
     const wrapper = mountSection({ status: 'Cancelled' })
     await flushPromises()
 
     expect(wrapper.find('[data-testid="committees-gated"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="committees-gated"]').text()).toContain(
-      'Cancelled',
+      'Committees are unavailable when the event status is Cancelled.',
+    )
+    // No approval pipeline: the copy must never mention it.
+    expect(wrapper.find('[data-testid="committees-gated"]').text()).not.toMatch(
+      /approv/i,
     )
     expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(false)
     expect(listCommittees).not.toHaveBeenCalled()

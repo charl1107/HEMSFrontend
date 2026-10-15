@@ -170,7 +170,7 @@ onMounted(load)
       role="status"
       data-testid="committees-gated"
     >
-      Committees open after the event is approved. Current status: {{ status }}.
+      Committees are unavailable when the event status is {{ status }}.
     </p>
     <template v-else>
       <p v-if="loading">Loading…</p>
