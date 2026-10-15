@@ -20,9 +20,8 @@ async function uploadCsv(wrapper: VueWrapper): Promise<void> {
   const input = wrapper.find('[data-testid="bulk-import-file"]')
   Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
   await input.trigger('change')
-  await flushPromises()
-  // FileReader resolves on a task, not a microtask.
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  // FileReader resolves on a macrotask; wait for the parsed row instead of racing it.
+  await vi.waitFor(() => expect(wrapper.find('[data-testid="bulk-row-2"]').exists()).toBe(true))
   await flushPromises()
 }
 
