@@ -89,10 +89,10 @@ describe('ReportsDashboardView', () => {
     expect(rowCells(campus, 'Inside campus')).toEqual(['Inside campus', '2'])
     expect(rowCells(campus, 'Outside campus')).toEqual(['Outside campus', '1'])
 
+    // The task table's single row has no label column: cells are Done/Total/Rate.
+    // Keyed on the Done cell via rowCells, so a swapped or misrowed count fails.
     const tasks = wrapper.find('[data-testid="reports-tasks"]')
-    expect(tasks.text()).toContain('2')
-    expect(tasks.text()).toContain('5')
-    expect(tasks.text()).toContain('40%')
+    expect(rowCells(tasks, '2')).toEqual(['2', '5', '40%'])
   })
 
   it('still shows categories with a zero count', async () => {
