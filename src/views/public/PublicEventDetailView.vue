@@ -105,9 +105,6 @@ onMounted(async () => {
           </p>
         </section>
 
-        <p class="public-event-detail__enrollment-notice" data-testid="enrollment-notice">
-          ℹ️ Participants are enrolled by course instructors and coordinators.
-        </p>
       </section>
     </template>
   </main>
@@ -200,15 +197,5 @@ onMounted(async () => {
   color: var(--muted-plum);
   font-style: italic;
   margin: 0;
-}
-.public-event-detail__enrollment-notice {
-  margin-top: 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  background: var(--rose-soft);
-  border: 1px solid var(--rose-line-2);
-  color: var(--brand-text);
-  font-size: 0.88rem;
-  line-height: 1.4;
 }
 </style>

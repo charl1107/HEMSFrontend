@@ -53,7 +53,7 @@ async function onSubmit() {
         <div class="login__brand-copy-wrap">
           <h1 class="login__mark">Hospitality Management</h1>
           <p class="login__brand-copy">
-            Your campus events, activities, and attendance — all in one place.
+            Your campus events and activities — all in one place.
           </p>
         </div>
         <RouterLink

@@ -10,7 +10,7 @@ const logoUrl = '/favicon.svg'
         <img :src="logoUrl" alt="HEMS hospitality logo" class="welcome__logo" />
       </div>
       <p class="welcome__eyebrow">Hospitality Management</p>
-      <h1>Your campus events, activities, and attendance — all in one place.</h1>
+      <h1>Your campus events and activities — all in one place.</h1>
       <RouterLink class="welcome__sign-in" to="/sign-in">Sign in</RouterLink>
     </div>
   </main>

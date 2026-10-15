@@ -16,7 +16,7 @@ export default defineConfig({
         name: 'Hospitality Management Portal',
         short_name: 'HM Portal',
         description:
-          'Offline-capable attendance capture for hospitality events.',
+          'Offline-capable event management for hospitality events.',
         theme_color: '#be185d',
         background_color: '#ffffff',
         display: 'standalone',
