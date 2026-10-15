@@ -5,13 +5,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EventDetailView from './EventDetailView.vue'
 import { advanceEvent, getEvent, type EventRecord } from '../../../api/events.api'
-import {
-  getApprovalHistory,
-  submitForApproval,
-  type ApprovalRecord,
-} from '../../../api/approvals.api'
 import { useAuthStore } from '../../../stores/auth.store'
-import { listParticipants } from '../../../api/participants.api'
 import { listCommittees, type CommitteeRecord } from '../../../api/committees.api'
 import { listTasks } from '../../../api/tasks.api'
 import { listSchedule } from '../../../api/schedule.api'
@@ -28,17 +22,6 @@ vi.mock('../../../api/events.api', async (importOriginal) => {
     ...actual,
     getEvent: vi.fn(),
     advanceEvent: vi.fn(),
-  }
-})
-
-vi.mock('../../../api/participants.api', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../../api/participants.api')>()
-  return {
-    ...actual,
-    listParticipants: vi.fn(),
-    addParticipant: vi.fn(),
-    removeParticipant: vi.fn(),
   }
 })
 
@@ -59,15 +42,6 @@ vi.mock('../../../api/users.api', async (importOriginal) => {
   return {
     ...actual,
     tryListUsers: vi.fn(),
-  }
-})
-
-vi.mock('../../../api/approvals.api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../api/approvals.api')>()
-  return {
-    ...actual,
-    getApprovalHistory: vi.fn(),
-    submitForApproval: vi.fn(),
   }
 })
 
@@ -112,26 +86,13 @@ function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
     description: 'Campus fair',
     eventDate: '2026-05-01T00:00:00.000Z',
     venue: 'Main Hall',
-    status: 'Draft',
+    status: 'Planning',
     coverImageUrl: null,
     eventTypeId: null,
     eventType: { id: 't1', name: 'Workshop' },
     createdById: 'u1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
-  }
-}
-
-function makeApproval(overrides: Partial<ApprovalRecord> = {}): ApprovalRecord {
-  return {
-    id: 'a1',
-    eventId: 'e1',
-    reviewerId: 'u1',
-    action: 'Submitted',
-    comments: 'Please review',
-    createdAt: '2026-02-01T10:00:00.000Z',
-    reviewer: { id: 'u1', firstName: 'Ada', lastName: 'Lovelace' },
     ...overrides,
   }
 }
@@ -240,8 +201,6 @@ describe('EventDetailView', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     router = await createTestRouter()
-    vi.mocked(getApprovalHistory).mockResolvedValue([makeApproval()])
-    vi.mocked(listParticipants).mockResolvedValue([])
     vi.mocked(listCommittees).mockResolvedValue([])
     vi.mocked(listTasks).mockResolvedValue([])
     vi.mocked(listSchedule).mockResolvedValue([])
@@ -249,118 +208,43 @@ describe('EventDetailView', () => {
     vi.mocked(tryListUsers).mockResolvedValue(null)
   })
 
-  it('shows Submit for Approval for the owner on Draft', async () => {
+  it('gates roster sections on a Cancelled event', async () => {
     setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Draft' }))
-
-    const wrapper = await mountDetail(router)
-    const submit = wrapper.find('[data-testid="submit-for-approval"]')
-    expect(submit.exists()).toBe(true)
-  })
-
-  it('hides Submit for Approval when status is PendingApproval', async () => {
-    setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'PendingApproval' }))
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="submit-for-approval"]').exists()).toBe(false)
-  })
-
-  it('hides Submit for Approval for a non-owner without create roles', async () => {
-    setSession(['Student'], 'other')
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Draft', createdById: 'someone-else' }),
+      makeEvent({ status: 'Cancelled', createdById: 'u1' }),
     )
 
     const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="submit-for-approval"]').exists()).toBe(false)
-  })
-
-  it('submits for approval and refreshes status and history', async () => {
-    setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Draft' }))
-    vi.mocked(submitForApproval).mockResolvedValue(
-      makeEvent({ status: 'PendingApproval' }),
-    )
-
-    const wrapper = await mountDetail(router)
-    await wrapper.find('[data-testid="submit-for-approval"]').trigger('click')
-    await flushPromises()
-
-    expect(submitForApproval).toHaveBeenCalledWith('e1')
-    expect(wrapper.find('[data-testid="event-detail-notice"]').text()).toContain(
-      'Submitted for approval',
-    )
-    expect(getApprovalHistory).toHaveBeenCalledTimes(2)
-    expect(wrapper.text()).toContain('PendingApproval')
-  })
-
-  it('renders the approval history timeline', async () => {
-    setSession(['Department Head'])
-    vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'PendingApproval' }),
-    )
-    vi.mocked(getApprovalHistory).mockResolvedValue([
-      makeApproval(),
-      makeApproval({
-        id: 'a2',
-        action: 'RevisionRequested',
-        comments: 'Add budget section',
-        reviewer: { id: 'u9', firstName: 'Grace', lastName: 'Hopper' },
-      }),
-    ])
-
-    const wrapper = await mountDetail(router)
-    const items = wrapper.findAll('[data-testid="timeline-item"]')
-    expect(items).toHaveLength(2)
-    expect(items[0].text()).toContain('Submitted')
-    expect(items[0].text()).toContain('Please review')
-    expect(items[0].text()).toContain('Ada Lovelace')
-    expect(items[1].text()).toContain('RevisionRequested')
-    expect(items[1].text()).toContain('Add budget section')
-  })
-
-  it('gates roster sections behind approval status', async () => {
-    setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Draft' }))
-
-    const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="participants-gated"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="committees-gated"]').exists()).toBe(true)
-    expect(listParticipants).not.toHaveBeenCalled()
     expect(listCommittees).not.toHaveBeenCalled()
   })
 
-  it('shows participant and committee entry sections on an approved event', async () => {
+  it('shows the committee entry section on a Planning event', async () => {
     setSession(['Event Coordinator'])
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'u1' }),
+      makeEvent({ status: 'Planning', createdById: 'u1' }),
     )
 
     const wrapper = await mountDetail(router)
-    expect(wrapper.find('[data-testid="participants-section"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="committees-section"]').exists()).toBe(true)
-    expect(listParticipants).toHaveBeenCalledWith('e1')
     expect(listCommittees).toHaveBeenCalledWith('e1')
-    expect(wrapper.find('[data-testid="participant-add-form"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(true)
   })
 
   it('hides committee management for a non-owner without manager roles', async () => {
     setSession(['Event Coordinator'], 'someone-else')
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'owner-else' }),
+      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
     )
 
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="participant-add-form"]').exists()).toBe(true)
   })
 
-  it('shows task and schedule sections on an approved event', async () => {
+  it('shows task and schedule sections on a Planning event', async () => {
     setSession(['Event Coordinator'])
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'u1' }),
+      makeEvent({ status: 'Planning', createdById: 'u1' }),
     )
 
     const wrapper = await mountDetail(router)
@@ -410,7 +294,7 @@ describe('EventDetailView', () => {
   it('hides planning management for a non-owner Event Coordinator without membership', async () => {
     setSession(['Event Coordinator'], 'someone-else')
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'owner-else' }),
+      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
     )
     vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['other-user'])])
 
@@ -424,7 +308,7 @@ describe('EventDetailView', () => {
   it('shows planning management for a non-owner committee member', async () => {
     setSession(['Student'], 'member-1')
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'owner-else' }),
+      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
     )
     vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['member-1'])])
 
@@ -436,7 +320,7 @@ describe('EventDetailView', () => {
   it('shows planning management for a non-owner Admin', async () => {
     setSession(['Admin'], 'admin-1')
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'owner-else' }),
+      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
     )
 
     const wrapper = await mountDetail(router)
@@ -447,7 +331,7 @@ describe('EventDetailView', () => {
   it('shows planning management for a non-owner Department Head', async () => {
     setSession(['Department Head'], 'head-1')
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'owner-else' }),
+      makeEvent({ status: 'Planning', createdById: 'owner-else' }),
     )
 
     const wrapper = await mountDetail(router)
@@ -464,9 +348,9 @@ describe('EventDetailView', () => {
     expect(wrapper.find('[data-testid="mark-completed"]').exists()).toBe(false)
   })
 
-  it('hides Mark ongoing when the event is Approved', async () => {
+  it('hides Mark ongoing when the event is Completed', async () => {
     setSession(['Event Coordinator'])
-    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Approved' }))
+    vi.mocked(getEvent).mockResolvedValue(makeEvent({ status: 'Completed' }))
 
     const wrapper = await mountDetail(router)
     expect(wrapper.find('[data-testid="mark-ongoing"]').exists()).toBe(false)
@@ -520,7 +404,7 @@ describe('EventDetailView', () => {
   it('keeps the outline sequential when committee and document data render (axe heading-order)', async () => {
     setSession(['Event Coordinator'])
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ status: 'Approved', createdById: 'u1' }),
+      makeEvent({ status: 'Planning', createdById: 'u1' }),
     )
     vi.mocked(listCommittees).mockResolvedValue([makeCommittee(['u1'])])
     vi.mocked(listDocuments).mockResolvedValue([makeDocument()])

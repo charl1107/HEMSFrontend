@@ -11,14 +11,9 @@ import AppLayout from '../layouts/AppLayout.vue'
 import EventsListView from '../views/app/events/EventsListView.vue'
 import EventFormView from '../views/app/events/EventFormView.vue'
 import EventDetailView from '../views/app/events/EventDetailView.vue'
-import ApprovalQueueView from '../views/app/approvals/ApprovalQueueView.vue'
-import AttendanceCaptureView from '../views/app/attendance/AttendanceCaptureView.vue'
-import MyAttendanceView from '../views/app/attendance/MyAttendanceView.vue'
 import ReportsDashboardView from '../views/app/reports/ReportsDashboardView.vue'
-import EventReportView from '../views/app/reports/EventReportView.vue'
 import { publicRoutes } from './public.routes'
-import { EVENT_READ_ROLES, SUBMIT_EVENT_ROLES } from '../api/events.api'
-import { ATTENDANCE_SUPERVISOR_ROLES } from '../api/attendance.api'
+import { CREATE_EVENT_ROLES, EVENT_READ_ROLES } from '../api/events.api'
 import { REPORT_ROLES } from '../api/reports.api'
 
 const STAFF_ROLES = ['Department Head', 'Event Coordinator', 'Instructor', 'Student Officer', 'Admin']
@@ -105,7 +100,9 @@ export const routes: RouteRecordRaw[] = [
         path: 'manage/events/:id/edit',
         name: 'event-edit',
         component: EventFormView,
-        meta: { roles: [...SUBMIT_EVENT_ROLES] },
+        // Coarse gate only: event owners (any create role) qualify at runtime;
+        // EVENT_EDIT_ROLES is the privileged set enforced on top.
+        meta: { roles: [...CREATE_EVENT_ROLES] },
       },
       {
         path: 'manage/events/:id',
@@ -114,33 +111,9 @@ export const routes: RouteRecordRaw[] = [
         meta: { roles: [...EVENT_READ_ROLES] },
       },
       {
-        path: 'approvals',
-        name: 'approvals-queue',
-        component: ApprovalQueueView,
-        meta: { roles: [...SUBMIT_EVENT_ROLES] },
-      },
-      {
-        path: 'manage/events/:id/attendance',
-        name: 'attendance-capture',
-        component: AttendanceCaptureView,
-        meta: { roles: [...ATTENDANCE_SUPERVISOR_ROLES] },
-      },
-      {
-        path: 'my-attendance',
-        name: 'my-attendance',
-        component: MyAttendanceView,
-        meta: {},
-      },
-      {
         path: 'reports',
         name: 'reports-dashboard',
         component: ReportsDashboardView,
-        meta: { roles: [...REPORT_ROLES] },
-      },
-      {
-        path: 'reports/events/:id',
-        name: 'event-report',
-        component: EventReportView,
         meta: { roles: [...REPORT_ROLES] },
       },
     ],

@@ -32,7 +32,6 @@ const dashboardRouteName = computed(() => {
         <RouterLink :to="{ name: 'public-events' }">Events</RouterLink>
         <template v-if="auth.isAuthenticated">
           <RouterLink :to="{ name: dashboardRouteName }">Dashboard</RouterLink>
-          <RouterLink v-if="auth.roles.includes('Student')" :to="{ name: 'my-attendance' }">My Attendance</RouterLink>
           <span class="public-bar__user">{{ auth.user?.firstName || auth.user?.email }}</span>
         </template>
         <template v-else>

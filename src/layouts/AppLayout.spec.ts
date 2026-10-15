@@ -22,7 +22,6 @@ async function createTestRouter(): Promise<Router> {
         children: [
           { path: 'dashboard', name: 'dashboard', component: stub },
           { path: 'manage/events', name: 'events-list', component: stub },
-          { path: 'approvals', name: 'approvals-queue', component: stub },
           { path: 'reports', name: 'reports-dashboard', component: stub },
           { path: 'admin/users', name: 'admin-users', component: stub },
           { path: 'admin/audit', name: 'admin-audit', component: stub },
@@ -201,7 +200,8 @@ describe('AppLayout nav scroll affordance', () => {
     const wrapper = await mountLayout(await createTestRouter())
 
     const tabs = wrapper.findAll('.app-bar__tab')
-    expect(tabs.length).toBe(7)
+    // Dashboard, Events, Reports, Users, Audit + the sign-out button.
+    expect(tabs.length).toBe(6)
     expect(
       tabs.every(
         (tab) =>

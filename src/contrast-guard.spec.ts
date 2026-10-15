@@ -10,8 +10,8 @@ import { describe, expect, it } from 'vitest'
  * Task 15's live axe pass found three light-mode serious violations, all the
  * same grey-placeholder pattern (`var(--gray-400)` = #9ca3af, ≈2.53:1 on light
  * surfaces, needs 4.5:1):
- *   .my-attendance__readonly        (MyAttendanceView  — U14)
- *   .approvals__cover-placeholder   (ApprovalQueueView)
+ *   .my-attendance__readonly        (MyAttendanceView  — U14, removed in the events-only rework)
+ *   .approvals__cover-placeholder   (ApprovalQueueView, removed in the events-only rework)
  *   .event-detail__description--empty (EventDetailView)
  * plus a fourth grep hit outside the axe sample:
  *   .ui-event-card__placeholder     (EventCard)
@@ -58,7 +58,7 @@ function sfc(relativePath: string): string {
 
 describe('U14/axe contrast guard (grey-placeholder sweep)', () => {
   it('sweeps every .vue file under src/ (guards against an empty sweep)', () => {
-    expect(vueFiles.length).toBeGreaterThanOrEqual(35)
+    expect(vueFiles.length).toBeGreaterThanOrEqual(30)
   })
 
   it('no .vue file styles text with var(--gray-400) (axe color-contrast)', () => {
@@ -71,18 +71,6 @@ describe('U14/axe contrast guard (grey-placeholder sweep)', () => {
 
   it('no .vue file contains the raw #9ca3af literal', () => {
     expect(offenders(/#9ca3af/i)).toEqual([])
-  })
-
-  it('.my-attendance__readonly resolves to var(--muted) (U14)', () => {
-    expect(sfc('views/app/attendance/MyAttendanceView.vue')).toMatch(
-      /\.my-attendance__readonly\s*\{[^}]*color:\s*var\(--muted\)/,
-    )
-  })
-
-  it('.approvals__cover-placeholder resolves to var(--muted)', () => {
-    expect(sfc('views/app/approvals/ApprovalQueueView.vue')).toMatch(
-      /\.approvals__cover-placeholder\s*\{[^}]*color:\s*var\(--muted\)/,
-    )
   })
 
   it('.event-detail__description--empty resolves to var(--muted)', () => {

@@ -77,7 +77,7 @@ function mountSection(
   return mount(CommitteesSection, {
     props: {
       eventId: 'e1',
-      status: 'Approved',
+      status: 'Planning',
       canManage: true,
       ...props,
     },
@@ -92,12 +92,12 @@ describe('CommitteesSection', () => {
   })
 
   it('shows a status gate and skips loading before approval', async () => {
-    const wrapper = mountSection({ status: 'PendingApproval' })
+    const wrapper = mountSection({ status: 'Cancelled' })
     await flushPromises()
 
     expect(wrapper.find('[data-testid="committees-gated"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="committees-gated"]').text()).toContain(
-      'PendingApproval',
+      'Cancelled',
     )
     expect(wrapper.find('[data-testid="committee-create-form"]').exists()).toBe(false)
     expect(listCommittees).not.toHaveBeenCalled()

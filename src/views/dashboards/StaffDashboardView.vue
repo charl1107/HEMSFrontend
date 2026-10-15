@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Card, EventCard } from '@/components/ui'
-import { listEvents, resolveCoverSrc, type EventRecord } from '../../api/events.api'
-import { ATTENDANCE_SUPERVISOR_ROLES } from '../../api/attendance.api'
+import { listEvents, resolveCoverSrc, EVENT_READ_ROLES, type EventRecord } from '../../api/events.api'
 import { useAuthStore } from '../../stores/auth.store'
 import { formatUserDisplayName } from '../../utils/user-name'
 
@@ -11,8 +10,8 @@ const events = ref<EventRecord[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const canCapture = computed(() =>
-  ATTENDANCE_SUPERVISOR_ROLES.some((role) => auth.roles.includes(role)),
+const canViewEvents = computed(() =>
+  EVENT_READ_ROLES.some((role) => auth.roles.includes(role)),
 )
 
 const ongoing = computed(() =>
@@ -20,7 +19,7 @@ const ongoing = computed(() =>
 )
 
 const scheduled = computed(() =>
-  events.value.filter((event) => event.status === 'Approved' || event.status === 'Planning'),
+  events.value.filter((event) => event.status === 'Planning'),
 )
 
 const upcoming = computed(() =>
@@ -45,7 +44,7 @@ const todayLabel = computed(() =>
 )
 
 async function load(): Promise<void> {
-  if (!canCapture.value) return
+  if (!canViewEvents.value) return
   loading.value = true
   error.value = null
   try {
@@ -102,7 +101,7 @@ onMounted(load)
       </article>
     </section>
 
-    <Card v-if="canCapture" title="Upcoming events">
+    <Card v-if="canViewEvents" title="Upcoming events">
       <p v-if="loading" data-testid="attendance-events-loading">Loading events…</p>
       <p v-else-if="error" class="dashboard__error" role="alert" data-testid="attendance-events-error">
         {{ error }}
@@ -120,7 +119,7 @@ onMounted(load)
         <div class="dashboard__empty-copy">
           <h2>No upcoming events yet</h2>
           <p>
-            Approved and scheduled events will appear here so you can quickly check what is coming
+            Scheduled events will appear here so you can quickly check what is coming
             up next.
           </p>
         </div>
@@ -145,10 +144,10 @@ onMounted(load)
         >
           <RouterLink
             class="dashboard__link-btn"
-            :to="{ name: event.status === 'Ongoing' ? 'attendance-capture' : 'event-detail', params: { id: event.id } }"
-            :data-testid="`start-attendance-${event.id}`"
+            :to="{ name: 'event-detail', params: { id: event.id } }"
+            :data-testid="`view-event-${event.id}`"
           >
-            {{ event.status === 'Ongoing' ? 'Start attendance' : 'View details' }}
+            View details
           </RouterLink>
         </EventCard>
       </div>

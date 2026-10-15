@@ -1,85 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { Card, StatusBadge } from '@/components/ui'
+import { Card } from '@/components/ui'
 import { useAuthStore } from '../../stores/auth.store'
 import { EVENT_READ_ROLES } from '../../api/events.api'
-import { listMyAttendance, type MyAttendanceRow } from '../../api/attendance.api'
 import { formatUserDisplayName } from '../../utils/user-name'
 
 const auth = useAuthStore()
 const canBrowseWorkspace = EVENT_READ_ROLES.some((role) => auth.roles.includes(role))
-
-const records = ref<MyAttendanceRow[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
-
-const upcomingEvents = computed(() => {
-  return records.value
-    .filter((row) =>
-      ['Approved', 'Planning', 'Ongoing'].includes(row.event.status),
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.event.eventDate).getTime() -
-        new Date(b.event.eventDate).getTime(),
-    )
-    .slice(0, 5)
-})
-
-const attendanceSummary = computed(() => {
-  const total = records.value.length
-  const attended = records.value.filter(
-    (row) => row.attendance.status === 'Present',
-  ).length
-  const absent = records.value.filter(
-    (row) => row.attendance.status === 'Absent',
-  ).length
-  const rate = total > 0 ? Math.round((attended / total) * 100) : 0
-  return { total, attended, absent, rate }
-})
-
-const recentAttendance = computed(() => {
-  return [...records.value]
-    .sort(
-      (a, b) =>
-        new Date(b.attendance.updatedAt).getTime() -
-        new Date(a.attendance.updatedAt).getTime(),
-    )
-    .slice(0, 5)
-})
-
-function formatEventDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function formatTime(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-async function loadData() {
-  loading.value = true
-  error.value = null
-  try {
-    records.value = await listMyAttendance()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load attendance records'
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  void loadData()
-})
 </script>
 
 <template>
@@ -117,13 +43,6 @@ onMounted(() => {
           Browse all events
         </RouterLink>
         <RouterLink
-          class="dashboard__action dashboard__action--secondary"
-          :to="{ name: 'my-attendance' }"
-          data-testid="my-attendance-link"
-        >
-          My attendance
-        </RouterLink>
-        <RouterLink
           v-if="canBrowseWorkspace"
           class="dashboard__action dashboard__action--secondary"
           :to="{ name: 'events-list' }"
@@ -132,79 +51,6 @@ onMounted(() => {
         </RouterLink>
       </div>
     </Card>
-
-    <div v-if="loading" class="dashboard__loading">
-      <p>Loading dashboard records…</p>
-    </div>
-
-    <p v-else-if="error" class="dashboard__error" role="alert">
-      {{ error }}
-    </p>
-
-    <template v-else>
-      <!-- Attendance Summary Card -->
-      <Card title="Attendance Summary" data-testid="attendance-summary-card">
-        <div v-if="records.length" class="dashboard__summary-grid">
-          <div class="dashboard__summary-box">
-            <span class="dashboard__summary-num">{{ attendanceSummary.attended }}</span>
-            <span class="dashboard__summary-label">Attended</span>
-          </div>
-          <div class="dashboard__summary-box">
-            <span class="dashboard__summary-num">{{ attendanceSummary.absent }}</span>
-            <span class="dashboard__summary-label">Absent</span>
-          </div>
-          <div class="dashboard__summary-box">
-            <span class="dashboard__summary-num">{{ attendanceSummary.rate }}%</span>
-            <span class="dashboard__summary-label">Attendance Rate</span>
-          </div>
-          <div class="dashboard__summary-box">
-            <span class="dashboard__summary-num">{{ attendanceSummary.total }}</span>
-            <span class="dashboard__summary-label">Total Enrolled</span>
-          </div>
-        </div>
-        <p v-else class="dashboard__empty-note">No attendance records yet.</p>
-      </Card>
-
-      <!-- My Upcoming Events Card -->
-      <Card title="My Upcoming Events" data-testid="upcoming-events-card">
-        <div v-if="upcomingEvents.length" class="dashboard__events-grid">
-          <article
-            v-for="row in upcomingEvents"
-            :key="row.event.id"
-            class="dashboard__event-item"
-          >
-            <div class="dashboard__event-details">
-              <h3 class="dashboard__event-name">{{ row.event.title }}</h3>
-              <p class="dashboard__event-sub">
-                {{ formatEventDate(row.event.eventDate) }} • {{ row.event.venue }}
-              </p>
-            </div>
-            <StatusBadge :status="row.event.status" />
-          </article>
-        </div>
-        <p v-else class="dashboard__empty-note">No upcoming events enrolled.</p>
-      </Card>
-
-      <!-- Recent Attendance Card -->
-      <Card title="Recent Attendance" data-testid="recent-attendance-card">
-        <ul v-if="recentAttendance.length" class="dashboard__attendance-list">
-          <li
-            v-for="row in recentAttendance"
-            :key="row.attendance.id"
-            class="dashboard__attendance-item"
-          >
-            <div class="dashboard__attendance-left">
-              <strong>{{ row.event.title }}</strong>
-              <span class="dashboard__attendance-date">
-                {{ formatEventDate(row.event.eventDate) }} (In: {{ formatTime(row.attendance.timeIn) }})
-              </span>
-            </div>
-            <StatusBadge :status="row.attendance.status" />
-          </li>
-        </ul>
-        <p v-else class="dashboard__empty-note">No recent attendance history.</p>
-      </Card>
-    </template>
   </main>
 </template>
 

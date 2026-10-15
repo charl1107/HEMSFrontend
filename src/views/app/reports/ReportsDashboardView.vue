@@ -10,10 +10,6 @@ const error = ref<string | null>(null)
 
 const hasData = computed(() => summary.value !== null)
 
-function formatPercent(value: number): string {
-  return `${(value * 100).toFixed(1)}%`
-}
-
 async function load(): Promise<void> {
   loading.value = true
   error.value = null
@@ -63,39 +59,9 @@ onMounted(load)
             </span>
           </div>
           <div class="reports__stat">
-            <span class="reports__stat-label">Completed</span>
-            <span class="reports__stat-value" data-testid="stat-completed">
-              {{ summary.events.completed }}
-            </span>
-          </div>
-          <div class="reports__stat">
-            <span class="reports__stat-label">Participants</span>
-            <span class="reports__stat-value" data-testid="stat-participants">
-              {{ summary.participants.total }}
-            </span>
-          </div>
-          <div class="reports__stat">
-            <span class="reports__stat-label">Present</span>
-            <span class="reports__stat-value" data-testid="stat-present">
-              {{ summary.attendance.present }}
-            </span>
-          </div>
-          <div class="reports__stat">
-            <span class="reports__stat-label">Absent</span>
-            <span class="reports__stat-value" data-testid="stat-absent">
-              {{ summary.attendance.absent }}
-            </span>
-          </div>
-          <div class="reports__stat">
-            <span class="reports__stat-label">Present rate</span>
-            <span class="reports__stat-value" data-testid="stat-present-rate">
-              {{ formatPercent(summary.attendance.presentRate) }}
-            </span>
-          </div>
-          <div class="reports__stat">
             <span class="reports__stat-label">Task completion</span>
             <span class="reports__stat-value" data-testid="stat-task-rate">
-              {{ formatPercent(summary.tasks.completionRate) }}
+              {{ summary.tasks.completionRate }}%
             </span>
           </div>
         </div>
@@ -112,14 +78,14 @@ onMounted(load)
               </thead>
               <tbody>
                 <tr
-                  v-for="row in summary.events.byStatus"
-                  :key="row.status"
-                  :data-testid="`by-status-${row.status}`"
+                  v-for="(count, status) in summary.events.byStatus"
+                  :key="status"
+                  :data-testid="`by-status-${status}`"
                 >
-                  <td><StatusBadge :status="row.status" /></td>
-                  <td>{{ row.count }}</td>
+                  <td><StatusBadge :status="status" /></td>
+                  <td>{{ count }}</td>
                 </tr>
-                <tr v-if="!summary.events.byStatus.length">
+                <tr v-if="!Object.keys(summary.events.byStatus).length">
                   <td colspan="2" class="reports__empty">No events yet.</td>
                 </tr>
               </tbody>
@@ -137,43 +103,15 @@ onMounted(load)
               </thead>
               <tbody>
                 <tr
-                  v-for="row in summary.events.byType"
-                  :key="row.type"
-                  :data-testid="`event-type-${row.type}`"
+                  v-for="(count, type) in summary.events.byType"
+                  :key="type"
+                  :data-testid="`event-type-${type}`"
                 >
-                  <td>{{ row.type }}</td>
-                  <td>{{ row.count }}</td>
+                  <td>{{ type }}</td>
+                  <td>{{ count }}</td>
                 </tr>
-                <tr v-if="!summary.events.byType.length">
+                <tr v-if="!Object.keys(summary.events.byType).length">
                   <td colspan="2" class="reports__empty">No events yet.</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-
-          <section
-            class="reports__section"
-            data-testid="reports-participants-by-type"
-          >
-            <h3 class="reports__section-title">Participants by type</h3>
-            <table class="reports__table">
-              <thead>
-                <tr>
-                  <th scope="col">Type</th>
-                  <th scope="col">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in summary.participants.byType"
-                  :key="row.type"
-                  :data-testid="`participant-type-${row.type}`"
-                >
-                  <td>{{ row.type }}</td>
-                  <td>{{ row.count }}</td>
-                </tr>
-                <tr v-if="!summary.participants.byType.length">
-                  <td colspan="2" class="reports__empty">No participants yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -193,60 +131,12 @@ onMounted(load)
                 <tr data-testid="task-completion-row">
                   <td>{{ summary.tasks.done }}</td>
                   <td>{{ summary.tasks.total }}</td>
-                  <td>{{ formatPercent(summary.tasks.completionRate) }}</td>
+                  <td>{{ summary.tasks.completionRate }}%</td>
                 </tr>
               </tbody>
             </table>
           </section>
         </div>
-
-        <section class="reports__section" data-testid="reports-attendance-by-event">
-          <h3 class="reports__section-title">Attendance by event</h3>
-          <table class="reports__table">
-            <thead>
-              <tr>
-                <th scope="col">Event</th>
-                <th scope="col">Status</th>
-                <th scope="col">Registered</th>
-                <th scope="col">Present</th>
-                <th scope="col">Absent</th>
-                <th scope="col">Missing</th>
-                <th scope="col">Present rate</th>
-                <th scope="col"><span class="sr-only">Report</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in summary.attendance.byEvent"
-                :key="row.eventId"
-                :data-testid="`attendance-event-${row.eventId}`"
-              >
-                <td data-label="Event">{{ row.title }}</td>
-                <td data-label="Status"><StatusBadge :status="row.status" /></td>
-                <td data-label="Registered">{{ row.registered }}</td>
-                <td data-label="Present">{{ row.present }}</td>
-                <td data-label="Absent">{{ row.absent }}</td>
-                <td data-label="Missing">{{ row.missing }}</td>
-                <td data-label="Present rate">{{ formatPercent(row.presentRate) }}</td>
-                <td data-label="Report">
-                  <RouterLink
-                    :to="{ name: 'event-report', params: { id: row.eventId } }"
-                    :data-testid="`event-report-link-${row.eventId}`"
-                  >
-                    Report
-                  </RouterLink>
-                </td>
-              </tr>
-              <tr v-if="!summary.attendance.byEvent.length">
-                <td colspan="8" class="reports__empty">No events yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
-
-        <p class="reports__definition" data-testid="absentee-definition">
-          {{ summary.absenteeDefinition }}
-        </p>
       </template>
     </Card>
   </main>
@@ -323,56 +213,8 @@ onMounted(load)
 .reports__empty {
   color: var(--muted);
 }
-.reports__definition {
-  margin: 0.5rem 0 0;
-  color: var(--muted);
-  font-size: 0.85em;
-  font-style: italic;
-}
 
 @media (max-width: 640px) {
   .reports { padding: 0.85rem; }
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table,
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody {
-    display: block;
-    width: 100%;
-  }
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table thead { display: none; }
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody tr {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 0.8rem;
-    margin-bottom: 0.75rem;
-    padding: 0.55rem 0.7rem;
-    border: 1px solid var(--line);
-    border-radius: 0.75rem;
-    background: var(--surface);
-  }
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td {
-    display: flex;
-    min-width: 0;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.45rem 0;
-    border-bottom: 1px solid var(--line);
-    overflow-wrap: anywhere;
-  }
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td::before {
-    content: attr(data-label);
-    flex: 0 0 auto;
-    color: var(--muted);
-    font-size: 0.72rem;
-    font-weight: 600;
-  }
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td:first-child {
-    grid-column: 1 / -1;
-    font-weight: 600;
-  }
-  .reports__section[data-testid='reports-attendance-by-event'] .reports__table tbody td[colspan] {
-    display: block;
-    grid-column: 1 / -1;
-    border-bottom: 0;
-  }
 }
 </style>

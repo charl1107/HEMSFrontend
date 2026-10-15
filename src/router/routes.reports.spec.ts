@@ -13,14 +13,11 @@ function findChild(path: string) {
 }
 
 describe('reports routes', () => {
-  it('exposes the dashboard and per-event report with Admin/Dept Head roles', () => {
+  it('exposes the reports dashboard with Admin/Dept Head roles', () => {
     const dashboard = findChild('reports')
-    const eventReport = findChild('reports/events/:id')
 
     expect(dashboard?.name).toBe('reports-dashboard')
     expect(dashboard?.meta?.roles).toEqual([...REPORT_ROLES])
-    expect(eventReport?.name).toBe('event-report')
-    expect(eventReport?.meta?.roles).toEqual([...REPORT_ROLES])
     expect([...REPORT_ROLES].sort()).toEqual(['Admin', 'Department Head'])
   })
 })

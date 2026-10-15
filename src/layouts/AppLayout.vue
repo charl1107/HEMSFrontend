@@ -5,7 +5,7 @@ import { RouterLink, useRouter } from 'vue-router'
 const logoUrl = '/favicon.svg'
 import { useAuthStore } from '../stores/auth.store'
 import { useThemeStore } from '../stores/theme.store'
-import { EVENT_READ_ROLES, SUBMIT_EVENT_ROLES } from '../api/events.api'
+import { EVENT_READ_ROLES } from '../api/events.api'
 import { REPORT_ROLES } from '../api/reports.api'
 import NotificationBell from '../components/NotificationBell.vue'
 
@@ -62,8 +62,6 @@ const dashboardPath = computed(() => (isStudentOnly.value ? '/student-dashboard'
 const canManageEvents = EVENT_READ_ROLES.some((role) => auth.roles.includes(role))
 const canBrowsePublicEvents = computed(() => auth.roles.includes('Student'))
 const canViewReports = REPORT_ROLES.some((role) => auth.roles.includes(role))
-const canOpenQueue = SUBMIT_EVENT_ROLES.some((role) => auth.roles.includes(role))
-const canViewAttendance = computed(() => auth.roles.includes('Student'))
 
 const initials = computed(() => {
   const email = auth.user?.email ?? 'User'
@@ -186,26 +184,6 @@ onBeforeUnmount(() => {
           @click="closeMobile"
         >
           {{ canManageEvents ? 'Events' : 'Events' }}
-        </RouterLink>
-        <RouterLink
-          v-if="canViewAttendance"
-          class="app-bar__tab"
-          active-class="app-bar__tab--active"
-          :to="{ name: 'my-attendance' }"
-          data-testid="nav-my-attendance"
-          @click="closeMobile"
-        >
-          My Attendance
-        </RouterLink>
-        <RouterLink
-          v-if="canOpenQueue"
-          class="app-bar__tab"
-          active-class="app-bar__tab--active"
-          :to="{ name: 'approvals-queue' }"
-          data-testid="nav-approvals"
-          @click="closeMobile"
-        >
-          Review queue
         </RouterLink>
         <RouterLink
           v-if="canViewReports"

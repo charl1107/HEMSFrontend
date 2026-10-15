@@ -1,27 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, Card, ConfirmDialog, EventCard, Timeline } from '@/components/ui'
+import { Button, Card, ConfirmDialog, EventCard } from '@/components/ui'
 import {
   advanceEvent,
-  EDITABLE_EVENT_STATUSES,
+  EVENT_EDIT_ROLES,
   getEvent,
   isEditableStatus,
   isRosterStatus,
   resolveCoverSrc,
-  REVIEW_EVENT_ROLES,
-  ROSTER_MANAGER_ROLES,
-  SUBMIT_EVENT_ROLES,
   type EventAdvanceTarget,
   type EventRecord,
 } from '../../../api/events.api'
-import {
-  getApprovalHistory,
-  submitForApproval,
-  type ApprovalRecord,
-} from '../../../api/approvals.api'
 import { COMMITTEE_MANAGER_ROLES, listCommittees } from '../../../api/committees.api'
-import ParticipantsSection from '../participants/ParticipantsSection.vue'
 import CommitteesSection from '../committees/CommitteesSection.vue'
 import TasksSection from '../tasks/TasksSection.vue'
 import ScheduleSection from '../schedule/ScheduleSection.vue'
@@ -33,22 +24,12 @@ const auth = useAuthStore()
 
 const eventId = computed(() => String(route.params.id))
 const event = ref<EventRecord | null>(null)
-const history = ref<ApprovalRecord[]>([])
 const loading = ref(false)
-const submitting = ref(false)
 const error = ref<string | null>(null)
 const notice = ref<string | null>(null)
 
-const isSubmitRole = computed(() =>
-  SUBMIT_EVENT_ROLES.some((role) => auth.roles.includes(role)),
-)
-
-const isReviewRole = computed(() =>
-  REVIEW_EVENT_ROLES.some((role) => auth.roles.includes(role)),
-)
-
-const isRosterRole = computed(() =>
-  ROSTER_MANAGER_ROLES.some((role) => auth.roles.includes(role)),
+const isEditRole = computed(() =>
+  EVENT_EDIT_ROLES.some((role) => auth.roles.includes(role)),
 )
 
 const isOwner = computed(() =>
@@ -61,23 +42,13 @@ const isCommitteeManagerRole = computed(() =>
 
 const isCommitteeMember = ref(false)
 
-const canSubmit = computed(() => {
-  if (!event.value) return false
-  if (!(EDITABLE_EVENT_STATUSES as readonly string[]).includes(event.value.status)) {
-    return false
-  }
-  return isOwner.value || isSubmitRole.value
-})
-
 const canEdit = computed(() =>
   Boolean(
-    (isReviewRole.value || isOwner.value) &&
+    (isEditRole.value || isOwner.value) &&
       event.value &&
       isEditableStatus(event.value.status),
   ),
 )
-
-const canManageParticipants = computed(() => isOwner.value || isRosterRole.value)
 
 const canManageCommittees = computed(
   () => isOwner.value || isCommitteeManagerRole.value,
@@ -105,27 +76,9 @@ const pendingAdvanceTitle = computed(() =>
 
 const pendingAdvanceMessage = computed(() =>
   pendingAdvance.value === 'Completed'
-    ? 'Mark this event as completed? Attendance capture closes for this event.'
-    : 'Mark this event as ongoing? Attendance capture opens for supervisors.',
+    ? 'Mark this event as completed?'
+    : 'Mark this event as ongoing?',
 )
-
-const historyItems = computed(() =>
-  history.value.map((entry) => ({
-    id: entry.id,
-    title: entry.action,
-    meta: formatEntryMeta(entry),
-    description: entry.comments ?? undefined,
-  })),
-)
-
-function formatEntryMeta(entry: ApprovalRecord): string {
-  const when = new Date(entry.createdAt)
-  const dateText = Number.isNaN(when.getTime()) ? entry.createdAt : when.toLocaleString()
-  const who = entry.reviewer
-    ? `${entry.reviewer.firstName} ${entry.reviewer.lastName}`
-    : 'System'
-  return `${who} · ${dateText}`
-}
 
 function formatDate(value: string): string {
   const date = new Date(value)
@@ -160,28 +113,11 @@ async function load(): Promise<void> {
   error.value = null
   try {
     event.value = await getEvent(eventId.value)
-    history.value = await getApprovalHistory(eventId.value)
     await resolveCommitteeMembership()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load event'
   } finally {
     loading.value = false
-  }
-}
-
-async function onSubmitForApproval(): Promise<void> {
-  if (!event.value || !canSubmit.value) return
-  submitting.value = true
-  error.value = null
-  notice.value = null
-  try {
-    event.value = await submitForApproval(event.value.id)
-    history.value = await getApprovalHistory(eventId.value)
-    notice.value = 'Submitted for approval. A reviewer will assess this proposal.'
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to submit for approval'
-  } finally {
-    submitting.value = false
   }
 }
 
@@ -194,9 +130,7 @@ async function onAdvanceConfirm(): Promise<void> {
   try {
     event.value = await advanceEvent(event.value.id, to)
     notice.value =
-      to === 'Ongoing'
-        ? 'Event marked ongoing. Supervisors can now capture attendance.'
-        : 'Event marked completed.'
+      to === 'Ongoing' ? 'Event marked ongoing.' : 'Event marked completed.'
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to advance event'
   } finally {
@@ -264,13 +198,6 @@ onMounted(load)
 
         <div class="event-detail__actions">
           <Button
-            v-if="canSubmit"
-            :label="submitting ? 'Submitting…' : 'Submit for Approval'"
-            data-testid="submit-for-approval"
-            :disabled="submitting"
-            @click="onSubmitForApproval"
-          />
-          <Button
             v-if="canAdvanceToOngoing"
             label="Mark ongoing"
             data-testid="mark-ongoing"
@@ -302,15 +229,6 @@ onMounted(load)
         />
       </Card>
 
-      <Card title="Approval history">
-        <Timeline :items="historyItems" empty-label="No approval activity yet." />
-      </Card>
-
-      <ParticipantsSection
-        :event-id="event.id"
-        :status="event.status"
-        :can-manage="canManageParticipants"
-      />
       <CommitteesSection
         :event-id="event.id"
         :status="event.status"

@@ -34,8 +34,7 @@ const filteredEvents = computed(() => {
   } else if (statusTab.value === 'Upcoming') {
     list = list.filter(
       (event) =>
-        ['Approved', 'Planning'].includes(event.status) &&
-        event.eventDate.slice(0, 10) >= todayStr,
+        event.status === 'Planning' && event.eventDate.slice(0, 10) >= todayStr,
     )
   } else if (statusTab.value === 'Past') {
     list = list.filter(

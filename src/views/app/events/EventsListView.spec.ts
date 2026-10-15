@@ -126,11 +126,11 @@ describe('EventsListView', () => {
     const wrapper = await mountList(router)
     vi.mocked(listEvents).mockClear()
 
-    await wrapper.find('[data-testid="status-filter"]').setValue('Approved')
+    await wrapper.find('[data-testid="status-filter"]').setValue('Planning')
     await flushPromises()
 
     expect(listEvents).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'Approved', offset: 0 }),
+      expect.objectContaining({ status: 'Planning', offset: 0 }),
     )
   })
 
@@ -193,7 +193,7 @@ describe('EventsListView', () => {
     vi.mocked(listEvents).mockResolvedValue({ items: [], total: 0 })
     const wrapper = await mountList(router)
 
-    await wrapper.find('[data-testid="status-filter"]').setValue('Approved')
+    await wrapper.find('[data-testid="status-filter"]').setValue('Planning')
     await flushPromises()
 
     const empty = wrapper.find('[data-testid="events-empty"]')

@@ -6,7 +6,6 @@ import { createMemoryHistory, createRouter, type RouteRecordRaw, type Router } f
 import { useAuthStore } from '../stores/auth.store'
 import { me, refresh } from '../api/auth.api'
 import { clearAccessToken } from '../api/http'
-import { listMyAttendance } from '../api/attendance.api'
 import StudentDashboardView from '../views/dashboards/StudentDashboardView.vue'
 import { routes } from './routes'
 
@@ -16,16 +15,6 @@ vi.mock('../api/auth.api', () => ({
   me: vi.fn(),
   refresh: vi.fn(),
 }))
-
-// StudentDashboardView fetches attendance in onMounted(); without this mock
-// the landing-render test would fire a real GET at VITE_API_BASE_URL.
-vi.mock('../api/attendance.api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../api/attendance.api')>()
-  return {
-    ...actual,
-    listMyAttendance: vi.fn(),
-  }
-})
 
 const stub = { template: '<div />' }
 
@@ -96,7 +85,6 @@ describe('router guard', () => {
     expect(auth.deniedPath).toBe('/reports')
 
     // The landing itself renders the denial feedback.
-    vi.mocked(listMyAttendance).mockResolvedValue([])
     const wrapper = mount(StudentDashboardView, { global: { plugins: [router] } })
     await flushPromises()
 
@@ -104,6 +92,26 @@ describe('router guard', () => {
     expect(notice.exists()).toBe(true)
     expect(notice.text()).toContain("You don't have access to that page.")
     wrapper.unmount()
+  })
+
+  it('denies Student on /manage/events and sets a denial flag', async () => {
+    const auth = useAuthStore()
+    auth.setSession('token', {
+      id: '1',
+      email: 's@x.com',
+      firstName: 'S',
+      lastName: 'T',
+      isActive: true,
+      roles: ['Student'],
+      mustChangePassword: false,
+    })
+    const router = await createTestRouter()
+    await router.push('/manage/events')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('student-dashboard')
+    expect(router.currentRoute.value.path).not.toContain('/manage')
+    expect(auth.deniedPath).toBe('/manage/events')
   })
 
   it('consumes the denial flag after the landing shows it (no stale re-show)', async () => {
@@ -124,14 +132,13 @@ describe('router guard', () => {
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('student-dashboard')
     expect(auth.deniedPath).toBe('/reports')
-    vi.mocked(listMyAttendance).mockResolvedValue([])
     const first = mount(StudentDashboardView, { global: { plugins: [router] } })
     await flushPromises()
     expect(first.find('[data-testid="access-denied"]').exists()).toBe(true)
     first.unmount()
 
     // One-shot: any later successful navigation consumes the flag…
-    await router.push('/my-attendance')
+    await router.push('/change-password')
     await router.isReady()
     expect(auth.deniedPath).toBeNull()
 

@@ -70,8 +70,8 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
     }
     // HTTP errors with a response: never leak raw axios text like
     // "Request failed with status code 500" — show the generic fallback.
-    // Errors without a response (network offline) keep the axios message;
-    // AttendanceCaptureView's isNetworkError relies on the no-response path.
+    // Errors without a response (network offline) keep the axios message so
+    // callers can still distinguish an offline failure from a server error.
     if (!error.response && error.message) return error.message
     return fallback
   }

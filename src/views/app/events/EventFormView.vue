@@ -2,7 +2,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Button, Card, ConfirmDialog, ConflictWarningBanner } from '@/components/ui'
-import { submitForApproval } from '../../../api/approvals.api'
 import {
   createEvent,
   EVENT_CAMPUS_SCOPES,
@@ -183,16 +182,8 @@ async function onSubmit(): Promise<void> {
     }
 
     if (props.overlay) {
-      let submitted: EventRecord
-      try {
-        submitted = await submitForApproval(result.id)
-      } catch (err) {
-        formError.value =
-          err instanceof Error ? err.message : 'Failed to submit for approval'
-        return
-      }
       emit('submitted', {
-        event: submitted,
+        event: result,
         conflictWarning: conflictWarning.value,
         coverError: uploadError,
       })
@@ -396,7 +387,7 @@ onMounted(loadExisting)
                 saving
                   ? 'Saving…'
                   : overlay
-                    ? 'Create & submit'
+                    ? 'Create event'
                     : 'Save changes'
               "
               data-testid="event-submit"

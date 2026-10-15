@@ -9,7 +9,7 @@ import { expectSequentialHeadings } from '../../test-utils/headings'
 
 vi.mock('../../api/events.api', () => ({
   listEvents: vi.fn(),
-  ATTENDANCE_SUPERVISOR_ROLES: ['Department Head', 'Event Coordinator', 'Instructor', 'Admin'],
+  EVENT_READ_ROLES: ['Department Head', 'Event Coordinator', 'Instructor', 'Student Officer', 'Admin'],
   // StaffDashboardView calls this for every ongoing-event cover; a factory that
   // omits it makes the render throw and the row never mount.
   resolveCoverSrc: vi.fn(
@@ -23,7 +23,7 @@ const routes = [
   { path: '/', component: { template: '<div />' } },
   { path: '/manage/events', name: 'events-list', component: { template: '<div />' } },
   { path: '/reports', name: 'reports-dashboard', component: { template: '<div />' } },
-  { path: '/manage/events/:id/attendance', name: 'attendance-capture', component: { template: '<div />' } },
+  { path: '/manage/events/:id', name: 'event-detail', component: { template: '<div />' } },
 ]
 
 async function mountView() {
@@ -60,14 +60,14 @@ describe('StaffDashboardView', () => {
     expect(listEvents).toHaveBeenCalledWith({ limit: 100 })
   })
 
-  it('renders ongoing event row with start attendance testid', async () => {
+  it('renders ongoing event row with view-details link', async () => {
     vi.mocked(listEvents).mockResolvedValue({
       items: [{ id: 'e1', title: 'Fair', status: 'Ongoing' } as never],
       total: 1,
     })
     const wrapper = await mountView()
     await vi.waitFor(() => {
-      expect(wrapper.find('[data-testid="start-attendance-e1"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="view-event-e1"]').exists()).toBe(true)
     })
     expect(wrapper.find('[data-testid="ongoing-events"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="view-events"]').exists()).toBe(true)
@@ -80,7 +80,7 @@ describe('StaffDashboardView', () => {
     })
     const wrapper = await mountView()
     await vi.waitFor(() => {
-      expect(wrapper.find('[data-testid="start-attendance-e1"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="view-event-e1"]').exists()).toBe(true)
     })
     expectSequentialHeadings(wrapper)
   })

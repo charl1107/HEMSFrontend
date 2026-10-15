@@ -72,13 +72,13 @@ describe('ScheduleSection', () => {
     vi.mocked(listSchedule).mockResolvedValue([])
   })
 
-  it('gates on Rejected and skips loading', async () => {
-    const wrapper = mountSection({ status: 'Rejected' })
+  it('gates on Cancelled and skips loading', async () => {
+    const wrapper = mountSection({ status: 'Cancelled' })
     await flushPromises()
 
     const gate = wrapper.find('[data-testid="schedule-gated"]')
     expect(gate.exists()).toBe(true)
-    expect(gate.text()).toContain('Rejected')
+    expect(gate.text()).toContain('Cancelled')
     expect(wrapper.find('[data-testid="schedule-form"]').exists()).toBe(false)
     expect(listSchedule).not.toHaveBeenCalled()
   })

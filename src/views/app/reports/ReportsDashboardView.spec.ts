@@ -17,40 +17,13 @@ vi.mock('../../../api/reports.api', async (importOriginal) => {
 function makeSummary(overrides: Partial<SummaryReport> = {}): SummaryReport {
   return {
     events: {
-      total: 2,
-      completed: 1,
-      byStatus: [
-        { status: 'Completed', count: 1 },
-        { status: 'Planning', count: 1 },
-      ],
-      byType: [{ type: 'Workshop', count: 2 }],
+      total: 3,
+      byStatus: { Planning: 1, Ongoing: 1, Completed: 1 },
+      byType: { Workshop: 2, Seminar: 1 },
+      byMonth: { '2026-06': 2, '2026-07': 1 },
+      byCampusScope: { OnCampus: 2, OffCampus: 1 },
     },
-    participants: {
-      total: 10,
-      byType: [{ type: 'Student', count: 8 }],
-    },
-    attendance: {
-      present: 7,
-      absent: 2,
-      recorded: 9,
-      presentRate: 0.7,
-      absentRate: 0.2,
-      byEvent: [
-        {
-          eventId: 'e1',
-          title: 'Spring Fair',
-          status: 'Completed',
-          registered: 10,
-          present: 7,
-          absent: 2,
-          missing: 1,
-          presentRate: 0.7,
-          absentRate: 0.3,
-        },
-      ],
-    },
-    tasks: { total: 4, done: 3, completionRate: 0.75 },
-    absenteeDefinition: 'Absent or no row when Completed.',
+    tasks: { total: 5, done: 2, completionRate: 40 },
     ...overrides,
   }
 }
@@ -60,7 +33,6 @@ async function mountDashboard(): Promise<VueWrapper> {
     history: createMemoryHistory(),
     routes: [
       { path: '/', name: 'reports-dashboard', component: ReportsDashboardView },
-      { path: '/reports/events/:id', name: 'event-report', component: { template: '<div />' } },
     ],
   })
   await router.push({ name: 'reports-dashboard' })
@@ -82,26 +54,22 @@ describe('ReportsDashboardView', () => {
     const wrapper = await mountDashboard()
 
     expect(wrapper.find('[data-testid="reports-dashboard"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="stat-events"]').text()).toBe('2')
-    expect(wrapper.find('[data-testid="stat-completed"]').text()).toBe('1')
-    expect(wrapper.find('[data-testid="stat-participants"]').text()).toBe('10')
-    expect(wrapper.find('[data-testid="stat-present"]').text()).toBe('7')
-    expect(wrapper.find('[data-testid="stat-absent"]').text()).toBe('2')
-    expect(wrapper.find('[data-testid="stat-present-rate"]').text()).toBe('70.0%')
-    expect(wrapper.find('[data-testid="stat-task-rate"]').text()).toBe('75.0%')
+    expect(wrapper.find('[data-testid="stat-events"]').text()).toBe('3')
+    // completionRate is a percentage to 1 decimal, not a 0–1 fraction.
+    expect(wrapper.find('[data-testid="stat-task-rate"]').text()).toBe('40%')
   })
 
-  it('renders status, type, participant, and per-event tables', async () => {
+  it('renders status, type and task tables', async () => {
     const wrapper = await mountDashboard()
 
+    expect(wrapper.find('[data-testid="by-status-Planning"]').text()).toContain('1')
     expect(wrapper.find('[data-testid="by-status-Completed"]').text()).toContain('1')
     expect(wrapper.find('[data-testid="event-type-Workshop"]').text()).toContain('2')
-    expect(wrapper.find('[data-testid="participant-type-Student"]').text()).toContain('8')
-    expect(wrapper.find('[data-testid="attendance-event-e1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="event-report-link-e1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="absentee-definition"]').text()).toContain(
-      'Absent or no row',
-    )
+
+    const tasks = wrapper.find('[data-testid="task-completion-row"]')
+    expect(tasks.text()).toContain('2')
+    expect(tasks.text()).toContain('5')
+    expect(tasks.text()).toContain('40%')
   })
 
   it('shows the error state when the summary fails to load', async () => {
@@ -117,18 +85,5 @@ describe('ReportsDashboardView', () => {
 
     expect(wrapper.find('[data-testid="reports-dashboard"]').exists()).toBe(true)
     expectSequentialHeadings(wrapper)
-  })
-
-  // The Attendance-by-event table's 8th column header (`th:nth-child(8)`)
-  // links to the per-event report and rendered empty — axe empty-table-header.
-  it('gives the 8th column header screen-reader text (axe empty-table-header)', async () => {
-    const wrapper = await mountDashboard()
-
-    const headers = wrapper
-      .find('[data-testid="reports-attendance-by-event"] thead')
-      .findAll('th')
-    expect(headers).toHaveLength(8)
-    expect(headers[7].text().trim(), '8th column header must not be empty').not.toBe('')
-    expect(headers[7].text()).toContain('Report')
   })
 })

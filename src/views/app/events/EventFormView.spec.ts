@@ -13,7 +13,6 @@ import {
   type EventMutationResult,
   type EventRecord,
 } from '../../../api/events.api'
-import { submitForApproval } from '../../../api/approvals.api'
 
 vi.mock('../../../api/events.api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/events.api')>()
@@ -27,14 +26,6 @@ vi.mock('../../../api/events.api', async (importOriginal) => {
   }
 })
 
-vi.mock('../../../api/approvals.api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../api/approvals.api')>()
-  return {
-    ...actual,
-    submitForApproval: vi.fn(),
-  }
-})
-
 function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
   return {
     id: 'e1',
@@ -42,7 +33,7 @@ function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
     description: 'Campus fair',
     eventDate: '2026-05-01T00:00:00.000Z',
     venue: 'Main Hall',
-    status: 'Draft',
+    status: 'Planning',
     coverImageUrl: null,
     eventTypeId: null,
     eventType: null,
@@ -69,11 +60,6 @@ async function createTestRouter(): Promise<Router> {
     routes: [
       { path: '/', name: 'events-list', component: { template: '<div />' } },
       {
-        path: '/approvals',
-        name: 'approvals-queue',
-        component: { template: '<div />' },
-      },
-      {
         path: '/manage/events/:id/edit',
         name: 'event-edit',
         component: EventFormView,
@@ -98,7 +84,7 @@ async function mountAt(
 }
 
 async function mountOverlay(router: Router): Promise<VueWrapper> {
-  return mountAt(router, 'approvals-queue', {}, { overlay: true })
+  return mountAt(router, 'events-list', {}, { overlay: true })
 }
 
 async function fillValidForm(wrapper: VueWrapper): Promise<void> {
@@ -116,11 +102,8 @@ describe('EventFormView', () => {
     router = await createTestRouter()
   })
 
-  it('overlay auto-submits after create and emits submitted without navigating', async () => {
+  it('overlay creates the event and emits submitted without navigating', async () => {
     vi.mocked(createEvent).mockResolvedValue(makeMutationResult({ id: 'new-1' }))
-    vi.mocked(submitForApproval).mockResolvedValue(
-      makeEvent({ id: 'new-1', status: 'PendingApproval' }),
-    )
 
     const wrapper = await mountOverlay(router)
     await fillValidForm(wrapper)
@@ -128,27 +111,23 @@ describe('EventFormView', () => {
     await flushPromises()
 
     expect(createEvent).toHaveBeenCalledTimes(1)
-    expect(submitForApproval).toHaveBeenCalledWith('new-1')
-    expect(router.currentRoute.value.name).toBe('approvals-queue')
+    expect(router.currentRoute.value.name).toBe('events-list')
     const emitted = wrapper.emitted('submitted')
     expect(emitted).toHaveLength(1)
     expect(emitted![0][0]).toMatchObject({
-      event: expect.objectContaining({ status: 'PendingApproval' }),
+      event: expect.objectContaining({ status: 'Planning' }),
       conflictWarning: null,
       coverError: null,
     })
     expect(wrapper.emitted('cancel')).toBeUndefined()
   })
 
-  it('still auto-submits when create returns a conflictWarning and passes it through', async () => {
+  it('passes the create conflictWarning through to the submitted event', async () => {
     vi.mocked(createEvent).mockResolvedValue(
       makeMutationResult({
         id: 'new-2',
         conflictWarning: 'Venue already has an event on this date',
       }),
-    )
-    vi.mocked(submitForApproval).mockResolvedValue(
-      makeEvent({ id: 'new-2', status: 'PendingApproval' }),
     )
 
     const wrapper = await mountOverlay(router)
@@ -156,7 +135,6 @@ describe('EventFormView', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(submitForApproval).toHaveBeenCalledWith('new-2')
     const emitted = wrapper.emitted('submitted')
     expect(emitted).toHaveLength(1)
     expect(emitted![0][0]).toMatchObject({
@@ -167,9 +145,6 @@ describe('EventFormView', () => {
   it('reports cover upload errors without blocking submit', async () => {
     vi.mocked(createEvent).mockResolvedValue(makeMutationResult({ id: 'new-3' }))
     vi.mocked(uploadCover).mockRejectedValue(new Error('Cover upload failed'))
-    vi.mocked(submitForApproval).mockResolvedValue(
-      makeEvent({ id: 'new-3', status: 'PendingApproval' }),
-    )
 
     const wrapper = await mountOverlay(router)
     await fillValidForm(wrapper)
@@ -183,7 +158,6 @@ describe('EventFormView', () => {
     await flushPromises()
 
     expect(uploadCover).toHaveBeenCalledWith('new-3', file)
-    expect(submitForApproval).toHaveBeenCalledWith('new-3')
     expect(wrapper.find('[data-testid="cover-error"]').text()).toContain(
       'Cover upload failed',
     )
@@ -192,14 +166,10 @@ describe('EventFormView', () => {
     expect(emitted![0][0]).toMatchObject({ coverError: 'Cover upload failed' })
   })
 
-  it('keeps the overlay open on submit failure and retries via updateEvent', async () => {
-    vi.mocked(createEvent).mockResolvedValue(makeMutationResult({ id: 'new-4' }))
-    vi.mocked(updateEvent).mockResolvedValue(makeMutationResult({ id: 'new-4' }))
-    vi.mocked(submitForApproval)
-      .mockRejectedValueOnce(new Error('Submit failed'))
-      .mockResolvedValueOnce(
-        makeEvent({ id: 'new-4', status: 'PendingApproval' }),
-      )
+  it('keeps the overlay open when create fails and retries on resubmit', async () => {
+    vi.mocked(createEvent)
+      .mockRejectedValueOnce(new Error('Create failed'))
+      .mockResolvedValueOnce(makeMutationResult({ id: 'new-4' }))
 
     const wrapper = await mountOverlay(router)
     await fillValidForm(wrapper)
@@ -207,19 +177,15 @@ describe('EventFormView', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="event-form-error"]').text()).toContain(
-      'Submit failed',
+      'Create failed',
     )
     expect(wrapper.emitted('submitted')).toBeUndefined()
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(createEvent).toHaveBeenCalledTimes(1)
-    expect(updateEvent).toHaveBeenCalledWith(
-      'new-4',
-      expect.objectContaining({ title: 'Spring Fair' }),
-    )
-    expect(submitForApproval).toHaveBeenCalledTimes(2)
+    expect(createEvent).toHaveBeenCalledTimes(2)
+    expect(updateEvent).not.toHaveBeenCalled()
     expect(wrapper.emitted('submitted')).toHaveLength(1)
   })
 
@@ -229,12 +195,12 @@ describe('EventFormView', () => {
     expect(wrapper.emitted('cancel')).toHaveLength(1)
   })
 
-  it('renders a disabled read-only form for non-editable status', async () => {
+  it('renders a disabled read-only form for a frozen status', async () => {
     vi.mocked(getEvent).mockResolvedValue(
       makeEvent({
         id: 'e9',
-        title: 'Approved Fest',
-        status: 'Approved',
+        title: 'Completed Fest',
+        status: 'Completed',
       }),
     )
 
@@ -243,7 +209,7 @@ describe('EventFormView', () => {
 
     const notice = wrapper.find('[data-testid="event-readonly"]')
     expect(notice.exists()).toBe(true)
-    expect(notice.text()).toContain('Approved')
+    expect(notice.text()).toContain('Completed')
     expect(notice.text()).toContain('not editable')
 
     const title = wrapper.find<HTMLInputElement>('[data-testid="event-title"]')
@@ -255,7 +221,7 @@ describe('EventFormView', () => {
     const submit = wrapper.find<HTMLButtonElement>('[data-testid="event-submit"]')
     const cover = wrapper.find<HTMLInputElement>('[data-testid="cover-input"]')
 
-    expect(title.element.value).toBe('Approved Fest')
+    expect(title.element.value).toBe('Completed Fest')
     expect(date.element.value).toBe('2026-05-01')
     expect(venue.element.value).toBe('Main Hall')
     expect(title.attributes('disabled')).toBeDefined()
@@ -266,9 +232,9 @@ describe('EventFormView', () => {
     expect(submit.element.disabled).toBe(true)
   })
 
-  it('leaves the form editable for Draft status', async () => {
+  it('leaves the form editable for a Planning status', async () => {
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ id: 'e1', status: 'Draft' }),
+      makeEvent({ id: 'e1', status: 'Planning' }),
     )
 
     const wrapper = await mountAt(router, 'event-edit', { id: 'e1' })
@@ -288,10 +254,10 @@ describe('EventFormView', () => {
 
   it('remove cover asks for confirmation before calling removeCover', async () => {
     vi.mocked(getEvent).mockResolvedValue(
-      makeEvent({ id: 'e1', status: 'Draft', coverImageUrl: '/covers/x.jpg' }),
+      makeEvent({ id: 'e1', status: 'Planning', coverImageUrl: '/covers/x.jpg' }),
     )
     vi.mocked(removeCover).mockResolvedValue(
-      makeEvent({ id: 'e1', status: 'Draft', coverImageUrl: null }),
+      makeEvent({ id: 'e1', status: 'Planning', coverImageUrl: null }),
     )
 
     const wrapper = await mountAt(router, 'event-edit', { id: 'e1' })

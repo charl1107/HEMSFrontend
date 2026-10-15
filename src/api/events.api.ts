@@ -3,40 +3,23 @@ import { http } from './http'
 export const COVER_MAX_BYTES = 5 * 1024 * 1024
 export const COVER_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'] as const
 
-export const EVENT_STATUSES = [
-  'Draft',
-  'PendingApproval',
-  'RevisionRequired',
-  'Approved',
-  'Rejected',
-  'Planning',
-  'Ongoing',
-  'Completed',
-  'Cancelled',
-] as const
+export const EVENT_STATUSES = ['Planning', 'Ongoing', 'Completed', 'Cancelled'] as const
+
+// Statuses published on the public site — a Cancelled event is unpublished.
+export const PUBLIC_EVENT_STATUSES = ['Planning', 'Ongoing', 'Completed'] as const
 
 export const EVENT_CAMPUS_SCOPES = ['OnCampus', 'OffCampus'] as const
 
-export const SUBMIT_EVENT_ROLES = [
-  'Event Coordinator',
-  'Student Officer',
-  'Department Head',
-  'Admin',
-] as const
-
-export const REVIEW_EVENT_ROLES = [
-  'Department Head',
-  'Event Coordinator',
-  'Admin',
-] as const
-
-export const ROSTER_MANAGER_ROLES = [
+export const CREATE_EVENT_ROLES = [
   'Event Coordinator',
   'Instructor',
   'Student Officer',
   'Department Head',
   'Admin',
 ] as const
+
+// Privileged edit roles; event owners also qualify at runtime.
+export const EVENT_EDIT_ROLES = ['Department Head', 'Admin'] as const
 
 export const EVENT_READ_ROLES = [
   'Department Head',
@@ -45,17 +28,6 @@ export const EVENT_READ_ROLES = [
   'Student Officer',
   'Admin',
 ] as const
-
-export const EDITABLE_EVENT_STATUSES = ['Draft', 'RevisionRequired'] as const
-
-export const ROSTER_EVENT_STATUSES = [
-  'Approved',
-  'Planning',
-  'Ongoing',
-  'Completed',
-] as const
-
-export const PLANNING_EXCLUDED_STATUSES = ['Cancelled', 'Rejected'] as const
 
 export interface EventTypeRef {
   id: string
@@ -93,16 +65,18 @@ export interface EventInput {
   eventTypeId?: string
 }
 
+/** Frozen once Completed/Cancelled — the read-only gate is Planning/Ongoing. */
 export function isEditableStatus(status: string): boolean {
-  return (EDITABLE_EVENT_STATUSES as readonly string[]).includes(status)
+  return status === 'Planning' || status === 'Ongoing'
 }
 
+/** Roster-style sections (committees etc.) open on the publicly visible statuses. */
 export function isRosterStatus(status: string): boolean {
-  return (ROSTER_EVENT_STATUSES as readonly string[]).includes(status)
+  return (PUBLIC_EVENT_STATUSES as readonly string[]).includes(status)
 }
 
 export function isPlanningAllowedStatus(status: string): boolean {
-  return !(PLANNING_EXCLUDED_STATUSES as readonly string[]).includes(status)
+  return status !== 'Cancelled'
 }
 
 export function resolveCoverSrc(coverImageUrl: string | null | undefined): string | null {
